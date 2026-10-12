@@ -4,40 +4,35 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Literata:opsz,wght@7..72,400;7..72,600&family=Special+Elite&display=swap" rel="stylesheet">
 <style>
-/* Layout: a catalog-card drawer. Paper cards sit on a dark table, category headers are brass guide tabs,
-   and an opened clue becomes one huge card with a timer strip and scoring buttons. Single committed look
-   (projector-friendly dark table), so every color is set explicitly below. */
+[hidden]{display:none!important}
+/* Layout: a library catalog drawer. Paper cards sit on a dark table, category headers are guide tabs,
+   an opened clue becomes one big card with a timer strip, and the club logo lives on the cover card.
+   Every color comes from five user-editable inputs (bg, paper, accent, ink, stamp); the script derives
+   the rest and writes all of these tokens, so the defaults below only cover the first paint. */
 :root{
   color-scheme:dark;
-  --table:#0f1c26;
-  --table-2:#162836;
-  --edge:#2b4556;
-  --paper:#efe6cf;
-  --paper-2:#e0d4b4;
-  --paper-line:#cdbf9a;
-  --ink:#2a2118;
-  --ink-soft:#6a5c46;
-  --brass:#e0a63a;
-  --brass-ink:#2b1d05;
-  --stamp:#b3342a;
-  --good:#5fa37a;
-  --text:#ece6d6;
-  --muted:#9db0ba;
+  --bg:#2a2519; --bg-2:#363022; --edge:#524930; --field:#1b1811; --veil:#14120cf5;
+  --paper:#ebe3d0; --paper-2:#ddd3b9; --paper-line:#c9bd9b;
+  --ink:#2c2417; --ink-soft:#6b5d44;
+  --accent:#c29a3c; --accent-ink:#16120a; --accent-text:#c29a3c;
+  --stamp:#9a3b24; --stamp-ink:#ffffff;
+  --good:#5fa37a; --good-ink:#0d1f15;
+  --text:#f1ead7; --muted:#b4a98c;
   --display:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
   --serif:'Literata',Georgia,'Times New Roman',serif;
   --type:'Special Elite','Courier New',monospace;
 }
 *,*::before,*::after{box-sizing:border-box}
-html{height:100%;background:var(--table)}
+html{height:100%;background:var(--bg)}
 body{
   height:100%;margin:0;
   padding-block:12px;
   padding-inline:max(16px,1.4vw);
-  background:var(--table);color:var(--text);
+  background:var(--bg);color:var(--text);
   font:400 1rem/1.45 var(--serif);
   display:flex;flex-direction:column;overflow-x:hidden;
 }
-button,input,textarea{font:inherit}
+button,input,textarea,select{font:inherit}
 #app{flex:1;min-height:0;display:flex;flex-direction:column}
 
 /* buttons */
@@ -45,26 +40,32 @@ button,input,textarea{font:inherit}
   font:600 .95rem/1 var(--display);letter-spacing:.08em;text-transform:uppercase;
   padding:.6rem .85rem;min-height:2.5rem;
   border:1px solid var(--edge);border-radius:3px;
-  background:var(--table-2);color:var(--text);cursor:pointer;
+  background:var(--bg-2);color:var(--text);cursor:pointer;
 }
-.btn:hover{border-color:var(--brass)}
+.btn:hover{border-color:var(--accent)}
 .btn:disabled{opacity:.4;cursor:default}
 .btn:disabled:hover{border-color:var(--edge)}
-.btn.on,.btn.primary{background:var(--brass);color:var(--brass-ink);border-color:var(--brass)}
-.btn.armed{background:var(--stamp);color:#fff;border-color:var(--stamp)}
-.btn:focus-visible,.tile:focus-visible,input:focus-visible,textarea:focus-visible,.card:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.btn.on,.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.armed{background:var(--stamp);color:var(--stamp-ink);border-color:var(--stamp)}
+.btn:focus-visible,.tile:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.card:focus-visible,.pal:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* top bar */
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem 1rem;padding-bottom:.6rem}
+.brand{flex:1 1 14rem;min-width:0;display:flex;align-items:center;gap:.7rem}
+.logo{
+  flex:none;width:clamp(2.6rem,4.5vw,3.6rem);aspect-ratio:1;object-fit:cover;
+  border-radius:.5rem;border:2px solid var(--accent);background:var(--paper);cursor:pointer;
+}
 .bar h1{
-  flex:1 1 12rem;min-width:0;margin:0;
-  font:700 clamp(1.3rem,2.4vw + .6rem,2.4rem)/1 var(--display);
+  min-width:0;margin:0;
+  font:700 clamp(1.3rem,2.2vw + .6rem,2.4rem)/1 var(--display);
   letter-spacing:.08em;text-transform:uppercase;overflow-wrap:anywhere;text-wrap:balance;
 }
 .tools{display:flex;flex-wrap:wrap;gap:.4rem}
 
 /* play stage */
-.stage{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column}
+.scroller{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
+.stage{display:flex;flex-direction:column}
 .note{margin:0;padding-bottom:.5rem;font:400 .9rem/1.3 var(--type);color:var(--muted)}
 .board-wrap{flex:1 0 auto;display:flex;overflow-x:auto;padding-top:6px;min-width:0}
 .board{
@@ -77,11 +78,11 @@ button,input,textarea{font:inherit}
 .cat{
   position:relative;display:grid;place-items:center;text-align:center;
   min-height:3.4rem;padding:.5rem .35rem;border-radius:3px;
-  background:var(--brass);color:var(--brass-ink);
+  background:var(--accent);color:var(--accent-ink);
   font:700 clamp(.78rem,1.1vw + .45rem,1.9rem)/1.05 var(--display);
   letter-spacing:.05em;text-transform:uppercase;overflow-wrap:anywhere;hyphens:auto;
 }
-.cat::before{content:"";position:absolute;top:-5px;left:12%;width:34%;height:5px;background:var(--brass);border-radius:3px 3px 0 0}
+.cat::before{content:"";position:absolute;top:-5px;left:12%;width:34%;height:5px;background:var(--accent);border-radius:3px 3px 0 0}
 .tile{
   appearance:none;position:relative;display:grid;place-items:center;overflow:hidden;
   padding:8% 0 .4em;border:1px solid var(--paper-line);border-radius:3px;
@@ -89,12 +90,12 @@ button,input,textarea{font:inherit}
   font:400 clamp(1.5rem,2.6vw + .7rem,4rem)/1 var(--type);
   box-shadow:0 2px 0 rgba(0,0,0,.35);
 }
-.tile::before{content:"";position:absolute;left:0;right:0;top:16%;height:1px;background:rgba(179,52,42,.55)}
+.tile::before{content:"";position:absolute;left:0;right:0;top:16%;height:1px;background:var(--stamp);opacity:.55}
 .tile::after{
   content:"";position:absolute;left:50%;bottom:7%;width:clamp(6px,.9vw,12px);aspect-ratio:1;
-  transform:translateX(-50%);border-radius:50%;background:var(--table);box-shadow:inset 0 1px 2px rgba(0,0,0,.6);
+  transform:translateX(-50%);border-radius:50%;background:var(--bg);box-shadow:inset 0 1px 2px rgba(0,0,0,.6);
 }
-.tile.used{background:transparent;border:1px dashed var(--edge);color:transparent;box-shadow:none}
+.tile.used{background:transparent;border:1px dashed var(--edge);color:transparent;box-shadow:none;cursor:default}
 .tile.used::before,.tile.used::after{display:none}
 @media (prefers-reduced-motion:no-preference){
   .tile{transition:transform .12s ease,box-shadow .12s ease}
@@ -105,7 +106,7 @@ button,input,textarea{font:inherit}
 .scores{flex:none;display:flex;flex-wrap:wrap;gap:.5rem;padding-top:.7rem}
 .team{
   --tc:#999;flex:1 1 10rem;min-width:0;display:grid;gap:.15rem;padding:.45rem .6rem .5rem;
-  background:var(--table-2);border:1px solid var(--edge);border-left:4px solid var(--tc);border-radius:3px;
+  background:var(--bg-2);border:1px solid var(--edge);border-left:4px solid var(--tc);border-radius:3px;
 }
 .team .nm{
   width:100%;min-width:0;padding:.15rem 0;border:0;background:transparent;color:var(--text);
@@ -117,7 +118,7 @@ button,input,textarea{font:inherit}
 
 /* clue overlay */
 #overlay{
-  position:fixed;inset:0;z-index:20;display:flex;background:rgba(8,15,21,.97);
+  position:fixed;inset:0;z-index:20;display:flex;background:var(--veil);
   padding:max(12px,1.4vw);
   padding-top:max(12px,env(safe-area-inset-top,0px));
   padding-bottom:max(12px,env(safe-area-inset-bottom,0px));
@@ -128,18 +129,21 @@ button,input,textarea{font:inherit}
   background:var(--paper);color:var(--ink);border-radius:4px;
 }
 .card-head{
-  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem 1rem;
-  padding-bottom:.6rem;border-bottom:2px solid rgba(179,52,42,.6);
+  display:flex;flex-wrap:wrap;align-items:center;gap:.5rem 1rem;
+  padding-bottom:.6rem;border-bottom:2px solid var(--stamp);
 }
 .ccat{
-  padding:.3rem .8rem;border-radius:3px;background:var(--brass);color:var(--brass-ink);
+  padding:.3rem .8rem;border-radius:3px;background:var(--accent);color:var(--accent-ink);
   font:700 clamp(1.1rem,1.6vw + .6rem,2.2rem)/1.1 var(--display);letter-spacing:.07em;text-transform:uppercase;
 }
-.cval{font:400 clamp(1.4rem,2vw + .7rem,2.6rem)/1 var(--type)}
+.lvl{font:400 .95rem/1 var(--type);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.cval{margin-left:auto;font:400 clamp(1.4rem,2vw + .7rem,2.6rem)/1 var(--type)}
+.wm{width:clamp(2.2rem,3.4vw,3rem);aspect-ratio:1;border-radius:4px;object-fit:cover;mix-blend-mode:multiply;opacity:.8}
 .dbl{padding:.15rem .5rem;border:2px solid var(--stamp);color:var(--stamp);font:400 1.05rem/1.2 var(--type);text-transform:uppercase;transform:rotate(-3deg)}
 .cbody{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column}
 .cin{margin-block:auto;display:grid;gap:1.2rem;padding:.4rem 0}
 .q{margin:0;text-align:center;text-wrap:balance;overflow-wrap:anywhere;font:400 clamp(1.5rem,3.4vw + .5rem,4.2rem)/1.22 var(--serif)}
+.srcnote{margin:0;text-align:center;font:400 .95rem/1.2 var(--type);color:var(--ink-soft)}
 .ans{text-align:center;border-top:1px dashed var(--ink-soft);padding-top:1rem}
 .ans .lab{font:400 .95rem/1 var(--type);letter-spacing:.15em;text-transform:uppercase;color:var(--stamp)}
 .ans .a{margin:.4rem 0 0;font:600 clamp(1.4rem,2.8vw + .4rem,3.2rem)/1.2 var(--serif);overflow-wrap:anywhere}
@@ -147,7 +151,7 @@ button,input,textarea{font:inherit}
 .timer{display:flex;align-items:center;gap:1rem}
 .track{flex:1;height:.9rem;overflow:hidden;background:var(--paper-2);border:1px solid var(--paper-line);border-radius:2px}
 .fill{height:100%;width:100%;background:var(--good)}
-.timer.warn .fill{background:var(--brass)}
+.timer.warn .fill{background:var(--accent)}
 .timer.crit .fill{background:var(--stamp)}
 .tnum{min-width:2.2ch;text-align:right;font:400 clamp(2rem,3vw + 1rem,3.6rem)/1 var(--type);font-variant-numeric:tabular-nums}
 .timer.crit .tnum{color:var(--stamp)}
@@ -157,11 +161,11 @@ button,input,textarea{font:inherit}
   @keyframes pulse{50%{opacity:.55}}
 }
 .ctrl,.award{display:flex;flex-wrap:wrap;gap:.5rem}
-.card .btn{background:transparent;color:var(--ink);border-color:#a89868}
+.card .btn{background:transparent;color:var(--ink);border-color:var(--ink-soft)}
 .card .btn:hover{border-color:var(--ink)}
 .card .btn.ink{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-.card .btn.good{background:var(--good);color:#0d1f15;border-color:var(--good)}
-.card .btn.bad{background:var(--stamp);color:#fff;border-color:var(--stamp)}
+.card .btn.good{background:var(--good);color:var(--good-ink);border-color:var(--good)}
+.card .btn.bad{background:var(--stamp);color:var(--stamp-ink);border-color:var(--stamp)}
 .aw{
   --tc:#999;flex:1 1 15rem;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:.4rem .6rem;
   padding:.35rem .45rem .35rem .7rem;border:1px solid var(--paper-line);border-left:5px solid var(--tc);border-radius:3px;
@@ -170,17 +174,66 @@ button,input,textarea{font:inherit}
 .asc{font:400 1.3rem/1 var(--type);font-variant-numeric:tabular-nums}
 .hint{margin:0;font:400 .8rem/1.3 var(--type);color:var(--ink-soft)}
 
+/* cover: the logo on a catalog card */
+#cover{
+  position:fixed;inset:0;z-index:30;display:grid;place-items:center;overflow:auto;background:var(--veil);
+  padding:16px;
+  padding-top:max(16px,env(safe-area-inset-top,0px));
+  padding-bottom:max(16px,env(safe-area-inset-bottom,0px));
+}
+.cover-in{display:grid;gap:1.6rem;justify-items:center;margin-block:auto}
+.fich{
+  position:relative;width:min(88vw,19rem);padding:1rem 1rem 1.2rem;text-align:center;
+  background:var(--paper);color:var(--ink);border-radius:5px;transform:rotate(-1.2deg);
+  box-shadow:0 20px 50px rgba(0,0,0,.55),0 2px 0 var(--paper-line);
+}
+.fich::before{
+  content:"";position:absolute;top:-.9rem;left:10%;width:38%;height:.9rem;
+  background:var(--accent);border-radius:5px 5px 0 0;
+}
+.fich-logo{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:3px}
+.fich-rule{height:2px;margin:1rem 0 .8rem;background:var(--stamp);opacity:.7}
+.fich-title{margin:0;font:700 clamp(1.8rem,3vw + 1rem,2.8rem)/1 var(--display);letter-spacing:.08em;text-transform:uppercase;overflow-wrap:anywhere;text-wrap:balance}
+.fich-sub{margin:.5rem 0 0;font:400 .95rem/1.3 var(--type);color:var(--ink-soft)}
+.cover-act{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem}
+
+/* sets and colors */
+.subtabs,.cat-tabs{display:flex;flex-wrap:wrap;gap:.4rem}
+.set-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.8rem}
+.set-card{display:flex;flex-direction:column;gap:.5rem;min-width:0;padding:.85rem;background:var(--bg);border:1px solid var(--edge);border-radius:3px}
+.set-card h3{margin:0;color:var(--accent-text);font:700 1.3rem/1.1 var(--display);letter-spacing:.06em;text-transform:uppercase;overflow-wrap:anywhere}
+.set-card p{margin:0;color:var(--muted);font-size:.92rem}
+.meta{font:400 .8rem/1.35 var(--type);color:var(--muted);overflow-wrap:anywhere}
+.acts{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:auto}
+.saved{display:grid;gap:.5rem}
+.saved-row{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .8rem;padding:.6rem .7rem;background:var(--bg);border:1px solid var(--edge);border-radius:3px}
+.saved-row .info{flex:1 1 12rem;min-width:0;display:grid;gap:.15rem}
+.saved-row .nm{font:600 1.1rem/1.1 var(--display);letter-spacing:.06em;text-transform:uppercase;overflow-wrap:anywhere}
+.mix-grp{background:var(--bg);border:1px solid var(--edge);border-radius:3px}
+.mix-grp summary{cursor:pointer;padding:.6rem .8rem;font:600 1.05rem/1.2 var(--display);letter-spacing:.06em;text-transform:uppercase}
+.mix-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(13rem,1fr));gap:.4rem .9rem;padding:.2rem .8rem .8rem}
+.pal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(10rem,1fr));gap:.6rem}
+.pal{display:grid;gap:.45rem;padding:.55rem;border:2px solid var(--edge);border-radius:3px;background:var(--bg);color:var(--text);cursor:pointer;text-align:left}
+.pal.on{border-color:var(--accent)}
+.pal-name{font:600 1rem/1 var(--display);letter-spacing:.07em;text-transform:uppercase}
+.sw{display:flex;height:1.7rem;overflow:hidden;border-radius:2px;border:1px solid rgba(128,128,128,.45)}
+.sw i{flex:1}
+.pickers{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.8rem}
+.pk{display:flex;align-items:center;gap:.6rem;min-width:0}
+.pk span{min-width:0;font-size:.95rem}
+input[type=color]{width:3.2rem;height:2.4rem;flex:none;padding:0;border:1px solid var(--edge);border-radius:3px;background:transparent;cursor:pointer}
+
 /* editor */
-.editor{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-bottom:2rem}
-.ed-in{max-width:68rem;margin:0 auto;display:grid;gap:1.4rem}
-.ed-sec{display:grid;gap:.9rem;min-width:0;padding:1rem;background:var(--table-2);border:1px solid var(--edge);border-radius:3px}
-.ed-sec h2{margin:0;color:var(--brass);font:700 1.3rem/1 var(--display);letter-spacing:.08em;text-transform:uppercase}
+.editor{padding-bottom:2rem}
+.ed-in{max-width:68rem;margin:0 auto;display:grid;gap:1.2rem}
+.ed-sec{display:grid;gap:.9rem;min-width:0;padding:1rem;background:var(--bg-2);border:1px solid var(--edge);border-radius:3px}
+.ed-sec h2{margin:0;color:var(--accent-text);font:700 1.3rem/1 var(--display);letter-spacing:.08em;text-transform:uppercase}
 .help{margin:0;color:var(--muted);font-size:.95rem}
 .fld{display:grid;gap:.25rem;min-width:0}
 .fld label,.lbl{font:400 .85rem/1.2 var(--type);letter-spacing:.04em;color:var(--muted)}
-input[type=text],input[type=number],textarea{
+input[type=text],input[type=number],textarea,select{
   width:100%;min-width:0;padding:.5rem .6rem;
-  background:#0b151d;color:var(--text);border:1px solid var(--edge);border-radius:3px;
+  background:var(--field);color:var(--text);border:1px solid var(--edge);border-radius:3px;
   font:400 1rem/1.4 var(--serif);
 }
 textarea{resize:vertical}
@@ -190,150 +243,651 @@ textarea{resize:vertical}
 .rowline.wrap{flex-wrap:wrap}
 .vals{display:flex;flex-wrap:wrap;gap:.6rem}
 .vals .fld{width:6.5rem}
-.cat-tabs{display:flex;flex-wrap:wrap;gap:.4rem}
-.ced{display:grid;grid-template-columns:5rem minmax(0,1fr);gap:.6rem;padding:.7rem;background:var(--table);border:1px solid var(--edge);border-radius:3px}
-.ced-v{font:400 1.6rem/1.2 var(--type);color:var(--brass)}
+.ced{display:grid;grid-template-columns:5rem minmax(0,1fr);gap:.6rem;padding:.7rem;background:var(--bg);border:1px solid var(--edge);border-radius:3px}
+.ced-v{font:400 1.6rem/1.2 var(--type);color:var(--accent-text)}
 .ced-f{display:grid;gap:.5rem;min-width:0}
-.chk{display:flex;align-items:center;gap:.5rem;font-size:.95rem}
-input[type=checkbox]{width:1.1rem;height:1.1rem;accent-color:var(--brass)}
+.chk{display:flex;align-items:center;gap:.5rem;font-size:.95rem;min-width:0}
+input[type=checkbox]{width:1.1rem;height:1.1rem;flex:none;accent-color:var(--accent)}
 input[type=file]{max-width:100%;color:var(--muted)}
-@media (max-width:40rem){.ced{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:40rem){
+  .ced{grid-template-columns:minmax(0,1fr)}
+  .btn{padding:.5rem .6rem;min-height:2.2rem;font-size:.85rem;letter-spacing:.05em}
+  .bar{gap:.4rem .6rem}
+  .tools{gap:.3rem}
+  .cat{padding:.4rem .2rem;font-size:.66rem;letter-spacing:.02em}
+  .tile{font-size:1.25rem}
+}
 
 #toast{
   position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;
   max-width:calc(100% - 32px);padding:.55rem .9rem;border-radius:3px;
   background:var(--paper);color:var(--ink);font:400 .95rem/1.3 var(--type);box-shadow:0 6px 24px rgba(0,0,0,.5);
 }
+
 </style>
 
 <div id="app"></div>
+<div id="cover" hidden></div>
 <div id="overlay" hidden></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script>
+/* Sets incluidos. Cada categoría tiene 5 preguntas: 2 fáciles, 1 media y 2 difíciles (en ese orden).
+   Formato de pregunta: [pregunta, respuesta, dato extra]. dbl = [categoría, fila] de la pregunta doble. */
+var BUILTIN=[
+{id:'clasicos',name:'Clásicos del club',desc:'Novelas clásicas, frases famosas, parejas literarias, autores y mundos de ficción.',dbl:[2,4],cats:[
+ ['Clásicos universales',[
+  ["¿Quién es el autor de «Don Quijote de la Mancha»?","Miguel de Cervantes","La primera parte apareció en 1605 y la segunda en 1615."],
+  ["¿Cómo se llama la ballena blanca que persigue el capitán Ahab?","Moby Dick","Novela de Herman Melville, publicada en 1851."],
+  ["¿Qué novela de Dostoievski sigue a Raskólnikov, un estudiante que comete un asesinato?","Crimen y castigo","Se publicó por entregas en 1866."],
+  ["¿Qué novela de Tolstói tiene como protagonista a una mujer casada que se enamora del conde Vronski?","Ana Karénina","Se publicó por entregas entre 1875 y 1877."],
+  ["¿Quién escribió «En busca del tiempo perdido»?","Marcel Proust","Son siete volúmenes, publicados entre 1913 y 1927."]]],
+ ['¿Quién dijo esto?',[
+  ["¿Quién dice «Ser o no ser, esa es la cuestión»?","Hamlet","Obra de William Shakespeare."],
+  ["Un zorro le dice a un niño «Lo esencial es invisible a los ojos». ¿Cómo se llama el niño?","El Principito","Antoine de Saint-Exupéry, 1943."],
+  ["«Es una verdad universalmente reconocida que un hombre soltero, poseedor de una gran fortuna, necesita una esposa». ¿Qué novela abre así?","Orgullo y prejuicio","Jane Austen, 1813."],
+  ["«Todos los animales son iguales, pero algunos animales son más iguales que otros». ¿De qué libro viene?","Rebelión en la granja","George Orwell, 1945."],
+  ["¿Quién escribió «Yo soy yo y mi circunstancia»?","José Ortega y Gasset","Aparece en «Meditaciones del Quijote» (1914)."]]],
+ ['Parejas de libros',[
+  ["Romeo y…","Julieta","Tragedia de Shakespeare."],
+  ["Don Quijote y…","Sancho Panza"],
+  ["Elizabeth Bennet y…","Fitzwilliam Darcy","Protagonistas de «Orgullo y prejuicio»."],
+  ["Winston Smith y…","Julia","Personajes de «1984», de George Orwell."],
+  ["Heathcliff y…","Catherine Earnshaw","Personajes de «Cumbres borrascosas», de Emily Brontë."]]],
+ ['Autores y obras',[
+  ["¿Quién escribió «Los miserables»?","Victor Hugo","Publicada en 1862."],
+  ["¿Quién escribió «Mujercitas»?","Louisa May Alcott","La primera parte salió en 1868."],
+  ["¿Quién escribió «Madame Bovary»?","Gustave Flaubert","Publicada en 1857."],
+  ["¿Quién escribió «El Aleph»?","Jorge Luis Borges","Libro de cuentos de 1949."],
+  ["¿Qué seudónimo masculino usó Mary Ann Evans para publicar «Middlemarch»?","George Eliot","Se publicó entre 1871 y 1872."]]],
+ ['Mundos y lugares',[
+  ["¿Cómo se llama el pueblo de «Cien años de soledad»?","Macondo","Novela de Gabriel García Márquez."],
+  ["¿Cómo se llama el país mágico al que se llega por un armario en la obra de C. S. Lewis?","Narnia"],
+  ["¿Cómo se llama el asteroide de donde viene El Principito?","B-612"],
+  ["¿Cómo se llama el condado ficticio de Mississippi creado por William Faulkner?","Yoknapatawpha","Ahí transcurren «El ruido y la furia» y «Mientras agonizo»."],
+  ["¿Cómo se llama la ciudad imaginaria de «La Regenta»?","Vetusta","Novela de Leopoldo Alas «Clarín», de 1884 y 1885."]]]
+]},
+{id:'latam',name:'Latinoamérica y Chile',desc:'El Boom, letras chilenas, premios Nobel y poesía del continente.',dbl:[3,4],cats:[
+ ['El Boom',[
+  ["¿Qué colombiano escribió «Crónica de una muerte anunciada»?","Gabriel García Márquez","Se publicó en 1981."],
+  ["¿Qué argentino escribió «Rayuela»?","Julio Cortázar","Publicada en 1963."],
+  ["¿Qué peruano escribió «La ciudad y los perros»?","Mario Vargas Llosa","Su primera novela, de 1963."],
+  ["¿Qué mexicano escribió «La muerte de Artemio Cruz»?","Carlos Fuentes","Publicada en 1962."],
+  ["¿Qué chileno del Boom escribió «El obsceno pájaro de la noche»?","José Donoso","Publicada en 1970."]]],
+ ['Letras chilenas',[
+  ["¿Quién escribió «La casa de los espíritus»?","Isabel Allende","Su primera novela, de 1982."],
+  ["¿Qué chileno escribió «Los detectives salvajes»?","Roberto Bolaño","Publicada en 1998."],
+  ["¿Qué escritora chilena escribió «La amortajada»?","María Luisa Bombal","Publicada en 1938."],
+  ["¿Quién escribió «Hijo de ladrón»?","Manuel Rojas","Publicada en 1951."],
+  ["¿Quién escribió «Martín Rivas»?","Alberto Blest Gana","Publicada en 1862."]]],
+ ['Premios Nobel',[
+  ["¿Qué poeta chileno ganó el Nobel de Literatura en 1971?","Pablo Neruda"],
+  ["¿Qué escritora chilena fue la primera latinoamericana en ganar el Nobel de Literatura, en 1945?","Gabriela Mistral"],
+  ["¿Qué colombiano ganó el Nobel de Literatura en 1982?","Gabriel García Márquez"],
+  ["¿Qué mexicano ganó el Nobel de Literatura en 1990?","Octavio Paz"],
+  ["¿Qué guatemalteco ganó el Nobel de Literatura en 1967?","Miguel Ángel Asturias","Autor de «El Señor Presidente»."]]],
+ ['Cuento y novela',[
+  ["¿Qué argentino, casi ciego, escribió «Ficciones»?","Jorge Luis Borges","Publicado en 1944."],
+  ["¿Quién escribió «Pedro Páramo»?","Juan Rulfo","Publicada en 1955."],
+  ["¿Qué uruguayo escribió «La tregua»?","Mario Benedetti","Publicada en 1960."],
+  ["¿Qué argentino escribió «Facundo»?","Domingo Faustino Sarmiento","Publicado en 1845."],
+  ["¿Qué argentino escribió «Sobre héroes y tumbas»?","Ernesto Sábato","Publicada en 1961."]]],
+ ['Poesía del continente',[
+  ["¿Quién escribió «Veinte poemas de amor y una canción desesperada»?","Pablo Neruda","Publicado en 1924."],
+  ["¿Qué poeta chilena escribió «Desolación»?","Gabriela Mistral","Publicado en 1922."],
+  ["¿Qué poeta chileno creó los «antipoemas»?","Nicanor Parra","«Poemas y antipoemas» es de 1954."],
+  ["¿Qué poeta chileno escribió «Altazor»?","Vicente Huidobro","Publicado en 1931."],
+  ["¿Qué poeta peruano escribió «Trilce»?","César Vallejo","Publicado en 1922."]]]
+]},
+{id:'fantasia',name:'Fantasía y ciencia ficción',desc:'Tierra Media, Hogwarts, distopías, ciencia ficción clásica y fantasía moderna.',dbl:[3,4],cats:[
+ ['Tierra Media',[
+  ["¿Cómo se llama el protagonista de «El hobbit»?","Bilbo Bolsón","J. R. R. Tolkien, 1937."],
+  ["¿Cómo se llama el mago gris que acompaña a la Compañía del Anillo?","Gandalf"],
+  ["¿Cómo se llama la criatura que poseía el Anillo antes que Bilbo?","Gollum"],
+  ["¿En qué volcán se destruye el Anillo Único?","El Monte del Destino","También se llama Orodruin."],
+  ["¿Cómo se llama el libro de Tolkien sobre la Primera Edad, publicado después de su muerte?","El Silmarillion","Se publicó en 1977."]]],
+ ['Harry Potter',[
+  ["¿En qué colegio estudia Harry Potter?","Hogwarts"],
+  ["¿Cómo se llaman los dos mejores amigos de Harry?","Ron Weasley y Hermione Granger"],
+  ["¿Cómo se llama el director de Hogwarts durante casi toda la serie?","Albus Dumbledore"],
+  ["En el primer libro, ¿qué objeto muestra el mayor deseo de quien lo mira?","El espejo de Oesed","Su nombre en inglés es Erised, que es «deseo» al revés."],
+  ["¿Cuál es el título del tercer libro de la serie?","Harry Potter y el prisionero de Azkaban"]]],
+ ['Distopías',[
+  ["¿Quién escribió «1984»?","George Orwell","Publicada en 1949."],
+  ["¿Qué novela de Ray Bradbury trata de bomberos que queman libros?","Fahrenheit 451","Publicada en 1953."],
+  ["¿Quién escribió «Un mundo feliz»?","Aldous Huxley","Publicada en 1932."],
+  ["¿Qué novela de Margaret Atwood transcurre en la República de Gilead?","El cuento de la criada","Publicada en 1985."],
+  ["¿Qué autor ruso escribió «Nosotros», precursora de las distopías modernas?","Yevgueni Zamiatin","La escribió hacia 1920 y 1921."]]],
+ ['Ciencia ficción',[
+  ["¿Qué francés escribió «Veinte mil leguas de viaje submarino»?","Julio Verne","Publicada en 1870."],
+  ["¿Quién escribió «La guerra de los mundos»?","H. G. Wells","Publicada en 1898."],
+  ["¿Cómo se llama el planeta desértico de «Dune»?","Arrakis","Novela de Frank Herbert, de 1965."],
+  ["¿Qué autor formuló las Tres Leyes de la Robótica?","Isaac Asimov","Aparecen en sus relatos sobre robots."],
+  ["¿Qué novela de Stanisław Lem trata de un océano pensante en otro planeta?","Solaris","Publicada en 1961."]]],
+ ['Fantasía moderna',[
+  ["¿Qué saga de George R. R. Martin dio origen a la serie «Juego de tronos»?","Canción de hielo y fuego","El primer libro es de 1996."],
+  ["¿Qué alemán escribió «La historia interminable»?","Michael Ende","Publicada en 1979."],
+  ["¿Cómo se llama el mago protagonista de «Un mago de Terramar»?","Ged (Gavilán)","Ursula K. Le Guin, 1968."],
+  ["¿Qué escritor creó el Mundodisco?","Terry Pratchett","El primer libro es «El color de la magia» (1983)."],
+  ["¿Qué polaco escribió la saga de «El brujo», con Geralt de Rivia?","Andrzej Sapkowski"]]]
+]},
+{id:'misterio',name:'Misterio y novela negra',desc:'Detectives famosos, Agatha Christie, Sherlock Holmes, thrillers y misterio en español.',dbl:[1,4],cats:[
+ ['Detectives',[
+  ["¿En qué calle de Londres vive Sherlock Holmes?","Baker Street, número 221B"],
+  ["¿Cómo se llama el detective belga de Agatha Christie?","Hércules Poirot"],
+  ["¿Qué anciana de St Mary Mead resuelve casos en las novelas de Agatha Christie?","Miss Marple"],
+  ["¿Qué detective creado por Raymond Chandler protagoniza «El sueño eterno»?","Philip Marlowe","Publicada en 1939."],
+  ["¿Qué detective cubano creado por Leonardo Padura protagoniza «Pasado perfecto»?","Mario Conde","Publicada en 1991."]]],
+ ['Agatha Christie',[
+  ["¿Qué novela de Christie transcurre en un tren de lujo detenido por la nieve?","Asesinato en el Orient Express","Publicada en 1934."],
+  ["¿Qué novela suya reúne a diez personas en una isla? Hoy se titula con la frase «Y no quedó…».","Y no quedó ninguno","Publicada en 1939."],
+  ["¿Qué obra de teatro suya está en cartel en Londres desde 1952?","La ratonera","En inglés, The Mousetrap."],
+  ["¿Con qué seudónimo escribió novelas románticas?","Mary Westmacott"],
+  ["¿Cómo se llaman los detectives aficionados Beresford, una pareja?","Tommy y Tuppence"]]],
+ ['Sherlock Holmes',[
+  ["¿Quién creó a Sherlock Holmes?","Arthur Conan Doyle"],
+  ["¿Quién es el compañero y cronista de Holmes?","El doctor John Watson"],
+  ["¿Quién es el archienemigo de Holmes, con quien cae por las cataratas de Reichenbach?","El profesor Moriarty"],
+  ["¿Cuál fue la primera novela con Sherlock Holmes?","Estudio en escarlata","Publicada en 1887."],
+  ["¿Qué novela de Holmes transcurre en los páramos de Dartmoor y tiene un perro fantasmal?","El sabueso de los Baskerville","Se publicó entre 1901 y 1902."]]],
+ ['Novela negra y thriller',[
+  ["¿Quién escribió «Los hombres que no amaban a las mujeres», primer libro de la serie Millennium?","Stieg Larsson","Publicada en 2005."],
+  ["¿Quién escribió «El código Da Vinci»?","Dan Brown","Publicada en 2003."],
+  ["¿Quién escribió «El halcón maltés»?","Dashiell Hammett","Publicada en 1930."],
+  ["¿Qué novela de Umberto Eco es un misterio medieval en una abadía benedictina?","El nombre de la rosa","Publicada en 1980."],
+  ["¿Qué autora escribió «Perdida» (Gone Girl)?","Gillian Flynn","Publicada en 2012."]]],
+ ['Misterio en español',[
+  ["¿Quién escribió «La sombra del viento»?","Carlos Ruiz Zafón","Publicada en 2001."],
+  ["¿Qué argentino escribió «El túnel»?","Ernesto Sábato","Publicada en 1948."],
+  ["¿Qué español creó al detective Pepe Carvalho?","Manuel Vázquez Montalbán","La serie empezó en 1972."],
+  ["¿Quién escribió «La verdad sobre el caso Savolta»?","Eduardo Mendoza","Publicada en 1975."],
+  ["¿Qué dos escritores firmaron como H. Bustos Domecq «Seis problemas para don Isidro Parodi»?","Jorge Luis Borges y Adolfo Bioy Casares","Publicada en 1942."]]]
+]},
+{id:'terror',name:'Terror y gótico',desc:'Monstruos clásicos, Poe, Lovecraft, Stephen King y terror en español.',dbl:[2,4],cats:[
+ ['Monstruos clásicos',[
+  ["¿Quién escribió «Frankenstein»?","Mary Shelley","Se publicó en 1818."],
+  ["¿Qué novela de Bram Stoker presenta a un conde de Transilvania?","Drácula","Publicada en 1897."],
+  ["¿Quién escribió «El extraño caso del Dr. Jekyll y Mr. Hyde»?","Robert Louis Stevenson","Publicada en 1886."],
+  ["¿Quién escribió «El vampiro» (1819), uno de los primeros relatos de vampiros en inglés?","John Polidori","Nació de la misma velada que «Frankenstein»."],
+  ["¿Qué novela de Sheridan Le Fanu tiene como vampira a una joven llamada…?","Carmilla","Se publicó 25 años antes que «Drácula»."]]],
+ ['Edgar Allan Poe',[
+  ["¿Qué ave visita al narrador del poema más famoso de Poe?","Un cuervo","«El cuervo», de 1845."],
+  ["¿Cómo se titula el cuento de Poe en que un latido delata un crimen?","El corazón delator","Publicado en 1843."],
+  ["¿Qué cuento de Poe se considera el primer relato detectivesco moderno?","Los crímenes de la calle Morgue","Su detective es C. Auguste Dupin (1841)."],
+  ["¿En qué ciudad de Estados Unidos murió Poe, en 1849?","Baltimore"],
+  ["¿Cuál es la única novela completa de Poe?","Las aventuras de Arthur Gordon Pym","Publicada en 1838."]]],
+ ['Lovecraft',[
+  ["¿Cómo se llama la entidad más famosa de H. P. Lovecraft?","Cthulhu","«La llamada de Cthulhu», 1928."],
+  ["¿Cómo se llama la universidad ficticia de Arkham en sus relatos?","Universidad Miskatonic"],
+  ["¿Cómo se llama el libro maldito imaginario que aparece en sus relatos?","Necronomicón","Su autor ficticio es Abdul Alhazred."],
+  ["¿En qué ciudad de Rhode Island nació y vivió Lovecraft?","Providence"],
+  ["¿En qué continente transcurre «En las montañas de la locura»?","Antártida","La escribió en 1931."]]],
+ ['Terror moderno',[
+  ["¿Qué payaso aterra a los niños de Derry en «It», de Stephen King?","Pennywise","Publicada en 1986."],
+  ["¿Qué novela de King transcurre en el hotel Overlook?","El resplandor","Publicada en 1977."],
+  ["¿Cuál fue la primera novela publicada de Stephen King?","Carrie","Publicada en 1974."],
+  ["¿Quién escribió «La maldición de Hill House»?","Shirley Jackson","Publicada en 1959."],
+  ["¿Quién escribió «Otra vuelta de tuerca»?","Henry James","Publicada en 1898."]]],
+ ['Terror en español',[
+  ["¿Qué argentina escribió «Los peligros de fumar en la cama»?","Mariana Enríquez","Publicado en 2009."],
+  ["¿Qué poeta sevillano escribió «El monte de las ánimas», leyenda sobre los muertos?","Gustavo Adolfo Bécquer","Está en sus «Leyendas»."],
+  ["¿Qué uruguayo escribió «Cuentos de amor, de locura y de muerte»?","Horacio Quiroga","Publicado en 1917."],
+  ["¿Qué argentino escribió «Las fuerzas extrañas», libro de relatos fantásticos?","Leopoldo Lugones","Publicado en 1906."],
+  ["¿Qué mexicana escribió «Tiempo destrozado» y «Música concreta»?","Amparo Dávila","Los publicó en 1959 y 1964."]]]
+]},
+{id:'amor',name:'Amor y romance',desc:'Parejas inolvidables, Austen y las Brontë, poetas enamorados y amores trágicos.',dbl:[4,4],cats:[
+ ['Parejas inolvidables',[
+  ["Don Juan Tenorio y…","Doña Inés","Obra de José Zorrilla (1844)."],
+  ["Jane Eyre y…","Mr. Rochester","Novela de Charlotte Brontë (1847)."],
+  ["Florentino Ariza y…","Fermina Daza","«El amor en los tiempos del cólera» (1985)."],
+  ["Anna Karénina y…","El conde Vronski","Novela de Tolstói."],
+  ["Jay Gatsby y…","Daisy Buchanan","«El gran Gatsby» (1925)."]]],
+ ['Austen y las Brontë',[
+  ["¿Quién escribió «Sentido y sensibilidad»?","Jane Austen","Publicada en 1811."],
+  ["¿Qué hermana Brontë escribió «Cumbres borrascosas»?","Emily Brontë","Publicada en 1847."],
+  ["¿Qué novela de Austen tiene como protagonista a Emma Woodhouse?","Emma","Publicada en 1815."],
+  ["¿Con qué seudónimo masculino publicó Charlotte Brontë?","Currer Bell","Sus hermanas usaron Ellis y Acton Bell."],
+  ["¿Cuál fue la última novela completa de Austen, publicada tras su muerte?","Persuasión","Salió a fines de 1817."]]],
+ ['Poetas enamorados',[
+  ["¿Qué poeta chileno publicó «Cien sonetos de amor» en 1959?","Pablo Neruda"],
+  ["¿A qué mujer dedicó Petrarca su Cancionero?","Laura"],
+  ["¿Qué mujer inspiró a Dante en la «Vita nuova»?","Beatriz","Beatrice Portinari, según la tradición."],
+  ["¿Qué monja mexicana del siglo XVII escribió «Hombres necios que acusáis»?","Sor Juana Inés de la Cruz"],
+  ["¿Quién escribió «Romance sonámbulo»?","Federico García Lorca","Está en el «Romancero gitano» (1928)."]]],
+ ['Romance contemporáneo',[
+  ["¿Quién escribió «Bajo la misma estrella»?","John Green","Publicada en 2012."],
+  ["¿Quién escribió «Crepúsculo»?","Stephenie Meyer","Publicada en 2005."],
+  ["¿Quién escribió «Como agua para chocolate»?","Laura Esquivel","Publicada en 1989."],
+  ["¿Qué autora escribió «Outlander»?","Diana Gabaldon","Publicada en 1991."],
+  ["¿Quién escribió «Los puentes de Madison County»?","Robert James Waller","Publicada en 1992."]]],
+ ['Amores trágicos',[
+  ["¿Quién escribió «Romeo y Julieta»?","William Shakespeare","Hacia 1595."],
+  ["¿Qué espadachín de gran nariz ama a Roxana en la obra de Rostand?","Cyrano de Bergerac","Estrenada en 1897."],
+  ["¿Qué francés escribió «La dama de las camelias»?","Alexandre Dumas hijo","Publicada en 1848."],
+  ["¿Qué colombiano escribió la novela romántica «María»?","Jorge Isaacs","Publicada en 1867."],
+  ["¿Qué novela de Boris Pasternak tiene a un médico poeta y a su amor Lara?","Doctor Zhivago","Publicada en 1957."]]]
+]},
+{id:'infantil',name:'Infantil y juvenil',desc:'Cuentos de siempre, Roald Dahl, aventuras juveniles y personajes queridos.',dbl:[2,4],cats:[
+ ['Cuentos de siempre',[
+  ["¿Quién escribió «Alicia en el país de las maravillas»?","Lewis Carroll","Publicada en 1865."],
+  ["¿Qué niño que no quiere crecer vive en el País de Nunca Jamás?","Peter Pan","Creado por J. M. Barrie."],
+  ["¿Qué danés escribió «El patito feo» y «La sirenita»?","Hans Christian Andersen"],
+  ["¿Qué francés recopiló «La Cenicienta» y «Barba Azul» en 1697?","Charles Perrault","Su libro se titula «Cuentos de mamá Oca»."],
+  ["¿Quién escribió «Pinocho»?","Carlo Collodi","Se publicó entre 1881 y 1883."]]],
+ ['Roald Dahl',[
+  ["¿Quién escribió «Matilda»?","Roald Dahl","Publicada en 1988."],
+  ["¿Quién fabrica chocolate en «Charlie y la fábrica de chocolate»?","Willy Wonka"],
+  ["¿Cómo se llama el niño de «James y el melocotón gigante»?","James Henry Trotter"],
+  ["¿Qué libro de Dahl trata de brujas que odian a los niños?","Las brujas","Publicado en 1983."],
+  ["¿Qué ilustrador británico dibujó casi todos los libros de Dahl?","Quentin Blake"]]],
+ ['Aventura juvenil',[
+  ["¿Quién escribió «Los juegos del hambre»?","Suzanne Collins","Publicada en 2008."],
+  ["¿Quién escribió la saga «Percy Jackson»?","Rick Riordan","El primer libro es de 2005."],
+  ["¿Cómo se llama la protagonista de «Los juegos del hambre»?","Katniss Everdeen"],
+  ["¿Qué novela de Stevenson sigue a Jim Hawkins y al pirata Long John Silver?","La isla del tesoro","Publicada en 1883."],
+  ["¿Quién escribió «Las aventuras de Tom Sawyer»?","Mark Twain","Publicada en 1876."]]],
+ ['Personajes queridos',[
+  ["¿Cómo se llama la niña pelirroja de trenzas que es la más fuerte del mundo?","Pippi Calzaslargas","Creada por Astrid Lindgren."],
+  ["¿Cómo se llama el osito amante de la miel creado por A. A. Milne?","Winnie the Pooh"],
+  ["¿Cómo se llama la niña de «El jardín secreto»?","Mary Lennox","Novela de Frances Hodgson Burnett (1911)."],
+  ["¿Cómo se llama el niño de «Donde viven los monstruos»?","Max","Libro de Maurice Sendak (1963)."],
+  ["¿Qué autora canadiense creó a Ana de las Tejas Verdes?","Lucy Maud Montgomery","Publicada en 1908."]]],
+ ['En español',[
+  ["¿Quién creó a Papelucho?","Marcela Paz","El primer libro es de 1947."],
+  ["¿Quién escribió «Platero y yo»?","Juan Ramón Jiménez","Publicado en 1914."],
+  ["¿Qué argentina escribió «Dailan Kifki»?","María Elena Walsh","Publicada en 1966."],
+  ["¿Qué chileno escribió «La composición», álbum infantil sobre la vida bajo una dictadura?","Antonio Skármeta"],
+  ["¿Qué uruguayo escribió «Cuentos de la selva»?","Horacio Quiroga","Publicado en 1918."]]]
+]},
+{id:'poesia',name:'Poesía y poetas',desc:'Poetas del mundo, poesía en español, poetas chilenos, formas del verso y Nobel de poesía.',dbl:[3,4],cats:[
+ ['Poetas del mundo',[
+  ["¿Quién escribió «La Divina Comedia»?","Dante Alighieri","Siglo XIV."],
+  ["¿A qué poeta griego se atribuyen «La Ilíada» y «La Odisea»?","Homero"],
+  ["¿Qué poeta romano escribió la «Eneida»?","Virgilio"],
+  ["¿Qué estadounidense escribió «Hojas de hierba»?","Walt Whitman","Publicado en 1855."],
+  ["¿Qué portugués usó heterónimos como Álvaro de Campos?","Fernando Pessoa"]]],
+ ['Poesía en español',[
+  ["¿Quién escribió «Campos de Castilla»?","Antonio Machado","Publicado en 1912."],
+  ["¿Qué granadino escribió «Poeta en Nueva York»?","Federico García Lorca","Lo escribió en 1929 y 1930."],
+  ["¿Qué poeta español de la Generación del 27 ganó el Nobel en 1977?","Vicente Aleixandre"],
+  ["¿Quién escribió «Hijos de la ira»?","Dámaso Alonso","Publicado en 1944."],
+  ["¿Qué cubano escribió «Versos sencillos»?","José Martí","Publicado en 1891."]]],
+ ['Poetas chilenos',[
+  ["¿Qué poeta chilena escribió «Ternura»?","Gabriela Mistral","Publicado en 1924."],
+  ["¿Qué poeta chileno escribió «Residencia en la tierra»?","Pablo Neruda","Se publicó entre 1933 y 1935."],
+  ["¿Qué poeta chileno ganó el Premio Cervantes en 2003?","Gonzalo Rojas"],
+  ["¿Qué poeta chileno escribió «Purgatorio» (1979)?","Raúl Zurita","Premio Nacional de Literatura 2000."],
+  ["¿Qué poeta chileno ganó el Premio Cervantes en 2011?","Nicanor Parra"]]],
+ ['Ritmos y formas',[
+  ["¿Cuántos versos tiene un soneto?","Catorce"],
+  ["¿Cuántos versos tiene un haiku clásico japonés?","Tres","Con 5, 7 y 5 sílabas."],
+  ["¿Cómo se llama la estrofa de diez versos octosílabos que usaba Violeta Parra?","Décima","Se llama décima espinela."],
+  ["¿Cómo se llama el verso de once sílabas típico del soneto?","Endecasílabo"],
+  ["¿Cómo se llama la corriente de Huidobro que propone crear un mundo nuevo con las palabras?","Creacionismo"]]],
+ ['Nobel de poesía',[
+  ["¿Qué poeta chileno ganó el Nobel en 1971?","Pablo Neruda"],
+  ["¿Quién fue la primera latinoamericana en ganar el Nobel de Literatura?","Gabriela Mistral","Lo ganó en 1945."],
+  ["¿Qué poeta mexicano ganó el Nobel en 1990?","Octavio Paz"],
+  ["¿Qué poeta polaca ganó el Nobel en 1996?","Wisława Szymborska"],
+  ["¿Qué poeta irlandés ganó el Nobel en 1995?","Seamus Heaney"]]]
+]},
+{id:'pantalla',name:'Del libro a la pantalla',desc:'Películas y series basadas en libros, adaptaciones famosas y repartos.',dbl:[2,4],cats:[
+ ['Libros que fueron películas',[
+  ["¿Qué director neozelandés llevó «El Señor de los Anillos» al cine?","Peter Jackson","La trilogía se estrenó entre 2001 y 2003."],
+  ["¿Qué novela de Stephen King adaptó Stanley Kubrick en 1980?","El resplandor"],
+  ["¿Qué novela de Michael Ende se llevó al cine en 1984 con el mismo título?","La historia interminable"],
+  ["¿Qué novela de Patrick Süskind sobre un perfumista llegó al cine en 2006?","El perfume","La novela es de 1985."],
+  ["¿Qué novela de Arthur C. Clarke nació junto con la película de Kubrick de 1968?","2001: Una odisea espacial"]]],
+ ['Series basadas en libros',[
+  ["¿Qué serie de HBO se basa en «Canción de hielo y fuego»?","Juego de tronos","Se emitió de 2011 a 2019."],
+  ["¿Qué novela de García Márquez adaptó Netflix en una serie estrenada en 2024?","Cien años de soledad"],
+  ["¿Qué serie estrenada en 2017 adapta una novela de Margaret Atwood?","El cuento de la criada (The Handmaid's Tale)"],
+  ["¿Qué serie de Netflix de 2024 adapta la novela de Liu Cixin?","El problema de los 3 cuerpos"],
+  ["¿Qué serie de Apple TV+ de 2021 adapta la saga de Isaac Asimov?","Fundación"]]],
+ ['Adaptaciones famosas',[
+  ["¿Qué novela de Jane Austen se adaptó en 2005 con Keira Knightley?","Orgullo y prejuicio"],
+  ["¿Qué novela de Dan Brown protagonizó Tom Hanks en 2006?","El código Da Vinci"],
+  ["¿Qué novela de Isabel Allende se filmó en 1993 con Meryl Streep y Jeremy Irons?","La casa de los espíritus"],
+  ["¿Qué novela de Eduardo Sacheri es la base de «El secreto de sus ojos»?","La pregunta de sus ojos","La película ganó el Óscar a mejor película extranjera."],
+  ["¿Qué cuento de Julio Cortázar inspiró la película «Blow-Up», de Antonioni?","Las babas del diablo","Está en «Las armas secretas» (1959)."]]],
+ ['Cine y clásicos',[
+  ["¿Qué novela de Victor Hugo inspiró un célebre musical sobre Jean Valjean?","Los miserables"],
+  ["¿Qué película de 1939 con Vivien Leigh se basa en una novela de Margaret Mitchell?","Lo que el viento se llevó","La novela es de 1936."],
+  ["¿Qué película de 1961 con Audrey Hepburn adapta una novela corta de Truman Capote?","Desayuno con diamantes"],
+  ["¿Qué película de Coppola de 1979 adapta libremente «El corazón de las tinieblas»?","Apocalypse Now","Novela de Joseph Conrad."],
+  ["¿Qué novela de Anthony Burgess adaptó Kubrick en 1971?","La naranja mecánica","Publicada en 1962."]]],
+ ['Caras de personajes',[
+  ["¿Cuántas películas tiene la saga de Harry Potter?","Ocho"],
+  ["¿Qué actor interpretó a Harry Potter?","Daniel Radcliffe"],
+  ["¿Qué actriz interpretó a Hermione Granger?","Emma Watson"],
+  ["¿Qué actriz protagonizó «Los juegos del hambre» (2012)?","Jennifer Lawrence"],
+  ["¿Qué actor interpretó a Gandalf en las películas de Peter Jackson?","Ian McKellen"]]]
+]},
+{id:'mundo',name:'El mundo del libro',desc:'Premios, historia del libro, bibliotecas, géneros literarios y curiosidades.',dbl:[1,4],cats:[
+ ['Premios literarios',[
+  ["¿Qué premio literario se entrega en Estocolmo?","El Premio Nobel de Literatura"],
+  ["¿Qué premio en español lleva el nombre del autor del Quijote?","El Premio Cervantes"],
+  ["¿En qué país se entrega el Premio Booker?","Reino Unido"],
+  ["¿Qué escritora francesa ganó el Nobel de Literatura en 2022?","Annie Ernaux"],
+  ["¿Qué escritora surcoreana ganó el Nobel de Literatura en 2024?","Han Kang"]]],
+ ['Historia del libro',[
+  ["¿Quién inventó la imprenta de tipos móviles en Europa a mediados del siglo XV?","Johannes Gutenberg"],
+  ["¿Cómo se llama la gran biblioteca de la antigüedad situada en Egipto?","Biblioteca de Alejandría"],
+  ["¿Cuál fue el primer libro impreso por Gutenberg?","La Biblia de 42 líneas","Hacia 1455."],
+  ["¿Cómo se llama el libro impreso más antiguo con fecha conocida, un texto budista chino de 868?","El Sutra del Diamante"],
+  ["¿Qué ciudad alemana tiene la Feria del Libro más grande del mundo?","Fráncfort"]]],
+ ['Bibliotecas',[
+  ["¿Cómo se llama la persona que cuida y organiza una biblioteca?","Bibliotecario o bibliotecaria"],
+  ["¿Qué escritor argentino fue director de la Biblioteca Nacional de su país?","Jorge Luis Borges","La dirigió entre 1955 y 1973."],
+  ["¿En qué año se fundó la Biblioteca Nacional de Chile?","1813"],
+  ["¿Qué sistema de clasificación de bibliotecas usa números del 000 al 999?","Clasificación Decimal Dewey","La creó Melvil Dewey en 1876."],
+  ["¿Qué biblioteca de Washington D. C. es la mayor del mundo por su colección?","La Biblioteca del Congreso"]]],
+ ['Géneros literarios',[
+  ["¿Cómo se llama el género narrativo breve que cuenta una historia en pocas páginas?","Cuento"],
+  ["¿Cómo se llama el género escrito para ser representado?","Teatro o género dramático"],
+  ["¿Cómo se llama la novela que cuenta la vida de un pícaro, como el Lazarillo de Tormes?","Novela picaresca"],
+  ["¿Cómo se llama la novela que narra la formación de un joven?","Bildungsroman","También se llama novela de formación."],
+  ["¿Qué término acuñó Alejo Carpentier para hablar de la realidad fantástica de América?","Lo real maravilloso","Aparece en el prólogo de «El reino de este mundo» (1949)."]]],
+ ['Curiosidades',[
+  ["¿Qué día se celebra el Día Internacional del Libro?","El 23 de abril","La UNESCO eligió la fecha por Cervantes y Shakespeare, fallecidos en 1616."],
+  ["¿Cuántos libros tiene la serie original de Harry Potter?","Siete"],
+  ["¿Qué libro muchos críticos consideran la primera novela moderna?","Don Quijote de la Mancha"],
+  ["¿Qué irlandés escribió «Ulises», que transcurre en un solo día, el 16 de junio de 1904?","James Joyce","Ese día se celebra el Bloomsday."],
+  ["¿Qué novela de Italo Calvino empieza hablando de que el lector va a leer una novela de Italo Calvino?","Si una noche de invierno un viajero","Publicada en 1979."]]]
+]}
+];
+
 (function(){
 'use strict';
 document.documentElement.lang='es';
 
-var KEY='tablero-de-libros-v1';
+var LOGO='data:image/jpeg;base64,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';
+var KEY='tablero-de-libros-v1',LIBKEY='tablero-de-libros-sets-v1',THKEY='tablero-de-libros-tema-v1';
 var TEAM_COLORS=['#e07a5f','#5fb0a5','#a58fd6','#8fbf6a','#6da0e0','#d98aa8'];
-var MAX_CATS=8,MAX_ROWS=8,MAX_TEAMS=6;
+var MAX_CATS=8,MAX_ROWS=8,MAX_TEAMS=6,MAX_SAVED=100;
+var LEVELS=['','Fácil','Media','Difícil'];
+var ROWLV=[1,1,2,3,3];
 var fmt=function(n){return Number(n).toLocaleString('es-CL');};
-var blankClue=function(){return {q:'',a:'',n:'',d:false,used:false};};
 
-/* ---------- datos de ejemplo ---------- */
-function sample(){
-  var C=function(name,rows,dbl){
-    return {name:name,clues:rows.map(function(r,i){return {q:r[0],a:r[1],n:r[2]||'',d:dbl===i,used:false};})};
-  };
+/* ---------- utilidades ---------- */
+function str(v,max){return String(v==null?'':v).slice(0,max);}
+function num(v,d,lo,hi){v=Number(v);return isFinite(v)?Math.min(hi,Math.max(lo,Math.round(v))):d;}
+function levelForRow(ri,n){return ri<n*0.4?1:(ri<n*0.6?2:3);}
+function defaultVals(n){var a=[];for(var i=0;i<n;i++)a.push(100*(i+1));return a;}
+function blankClue(l){return {q:'',a:'',n:'',d:false,l:l||2,used:false,src:''};}
+function uid(){return 's'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function slug(s){var t=String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');return t||'tablero';}
+function readJSON(k){try{var r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return null;}}
+function writeJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function playable(cl){return !!(cl.q.trim()||cl.a.trim());}
+function countQ(cats){var n=0;cats.forEach(function(c){c.clues.forEach(function(x){if(playable(x))n++;});});return n;}
+
+/* ---------- colores y temas ---------- */
+function hex2rgb(h){h=h.replace('#','');if(h.length===3)h=h.replace(/./g,'$&$&');var n=parseInt(h,16);return [(n>>16)&255,(n>>8)&255,n&255];}
+function rgb2hex(a){return '#'+a.map(function(v){v=Math.max(0,Math.min(255,Math.round(v)));return (v<16?'0':'')+v.toString(16);}).join('');}
+function mix(a,b,t){var x=hex2rgb(a),y=hex2rgb(b);return rgb2hex([0,1,2].map(function(i){return x[i]+(y[i]-x[i])*t;}));}
+function lum(h){var c=hex2rgb(h).map(function(v){v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);});return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2];}
+function contrast(a,b){var l1=lum(a),l2=lum(b);if(l1<l2){var t=l1;l1=l2;l2=t;}return (l1+0.05)/(l2+0.05);}
+function onColor(bg,c1,c2){return contrast(bg,c1)>=contrast(bg,c2)?c1:c2;}
+
+var PRESETS=[
+  {id:'conco',name:'Del logo',c:{bg:'#2a2519',paper:'#ebe3d0',accent:'#c29a3c',ink:'#2c2417',stamp:'#9a3b24'}},
+  {id:'biblioteca',name:'Biblioteca',c:{bg:'#0f1c26',paper:'#efe6cf',accent:'#e0a63a',ink:'#2a2118',stamp:'#b3342a'}},
+  {id:'halloween',name:'Halloween',c:{bg:'#1b1028',paper:'#f1e2c4',accent:'#f08a1d',ink:'#2a1608',stamp:'#7b2fb5'}},
+  {id:'navidad',name:'Navidad',c:{bg:'#0f3320',paper:'#f7f0e1',accent:'#c8372d',ink:'#1f2a1e',stamp:'#a3212a'}},
+  {id:'amor',name:'Amor',c:{bg:'#3b0f24',paper:'#fdeaee',accent:'#e0446f',ink:'#3a1222',stamp:'#a8164a'}},
+  {id:'oceano',name:'Océano',c:{bg:'#0a2a3d',paper:'#e8f2f3',accent:'#2aa3b5',ink:'#0f2a33',stamp:'#c63d52'}},
+  {id:'bosque',name:'Bosque',c:{bg:'#14281d',paper:'#eee9d3',accent:'#8fae4c',ink:'#222f1f',stamp:'#a5482a'}},
+  {id:'atardecer',name:'Atardecer',c:{bg:'#2b1633',paper:'#fcefdf',accent:'#f2894a',ink:'#3a1f14',stamp:'#c23a4b'}},
+  {id:'papel',name:'Papel claro',c:{bg:'#f0e9d8',paper:'#fffdf7',accent:'#2f5d4c',ink:'#241e13',stamp:'#b3342a'}},
+  {id:'contraste',name:'Alto contraste',c:{bg:'#000000',paper:'#ffffff',accent:'#ffd400',ink:'#000000',stamp:'#d40000'}}
+];
+var THEME_KEYS=[['bg','Fondo'],['paper','Casillas y preguntas'],['accent','Acento'],['ink','Texto sobre el papel'],['stamp','Alertas y preguntas dobles']];
+function presetById(id){for(var i=0;i<PRESETS.length;i++)if(PRESETS[i].id===id)return PRESETS[i];return PRESETS[0];}
+var HEX=/^#[0-9a-fA-F]{6}$/;
+function validColors(c){return c&&THEME_KEYS.every(function(k){return HEX.test(c[k[0]]);});}
+function loadTheme(){
+  var raw=readJSON(THKEY);
+  var t={id:'conco',custom:Object.assign({},PRESETS[0].c)};
+  if(raw){
+    if(validColors(raw.custom))t.custom=raw.custom;
+    if(raw.id==='custom'||PRESETS.some(function(p){return p.id===raw.id;}))t.id=raw.id;
+  }
+  return t;
+}
+var TH=loadTheme();
+function saveTheme(){writeJSON(THKEY,TH);}
+function curColors(){return TH.id==='custom'?TH.custom:presetById(TH.id).c;}
+function derive(c){
+  var dark=lum(c.bg)<0.25;
+  var text=dark?mix(c.paper,'#ffffff',0.3):mix(c.ink,'#000000',0.25);
+  var bg2=dark?mix(c.bg,'#ffffff',0.07):mix(c.bg,'#000000',0.06);
   return {
-    title:'Tablero de libros',timer:30,sound:true,sample:true,
-    vals:[100,200,300,400,500],
-    teams:[{name:'Equipo 1',score:0},{name:'Equipo 2',score:0},{name:'Equipo 3',score:0}],
-    cats:[
-      C('Clásicos',[
-        ['Un hidalgo manchego enloquece de tanto leer libros de caballerías y sale a recorrer el mundo con su caballo Rocinante. ¿Cuál es el título de la novela?','Don Quijote de la Mancha','Miguel de Cervantes. La primera parte se publicó en 1605.'],
-        ['¿Quién escribió «Orgullo y prejuicio»?','Jane Austen','Publicada en 1813.'],
-        ['¿Cómo se llama la ballena blanca que obsesiona al capitán Ahab?','Moby Dick','Novela de Herman Melville, de 1851.'],
-        ['Un estudiante pobre de San Petersburgo comete un asesinato y la culpa lo atormenta. ¿Qué novela de Dostoievski es?','Crimen y castigo','Publicada en 1866.'],
-        ['¿Qué novela de Tolstói termina con su protagonista arrojándose bajo un tren?','Ana Karénina','Se publicó por entregas entre 1875 y 1877.']
-      ]),
-      C('¿Quién dijo esto?',[
-        ['¿Qué personaje dice «Ser o no ser, esa es la cuestión»?','Hamlet','Obra de William Shakespeare.'],
-        ['¿Quién abre su historia con «Llamadme Ismael»?','Ismael, el narrador de Moby Dick','Es la primera línea de la novela de Melville.'],
-        ['¿Quién dice «Lo esencial es invisible a los ojos»?','El zorro, en El Principito','Antoine de Saint-Exupéry, 1943.'],
-        ['¿Quién escribió «Yo soy yo y mi circunstancia»?','José Ortega y Gasset','Aparece en Meditaciones del Quijote (1914).'],
-        ['¿Qué personaje de Cervantes dice «Ladran, Sancho, señal que cabalgamos»?','Ninguno','La frase no aparece en el Quijote. Se le atribuye a don Quijote por error.']
-      ]),
-      C('Parejas famosas',[
-        ['Don Quijote y…','Sancho Panza'],
-        ['Romeo y…','Julieta','Obra de Shakespeare.'],
-        ['Sherlock Holmes y…','El doctor Watson','Personajes de Arthur Conan Doyle.'],
-        ['Elizabeth Bennet y…','Mr. Darcy','Protagonistas de Orgullo y prejuicio.'],
-        ['Winston Smith y…','Julia','Personajes de 1984, de George Orwell.']
-      ]),
-      C('Autores y obras',[
-        ['¿Quién escribió «Cien años de soledad»?','Gabriel García Márquez','Publicada en 1967.'],
-        ['¿Quién escribió «Veinte poemas de amor y una canción desesperada»?','Pablo Neruda','Publicado en 1924.'],
-        ['¿Quién escribió «La casa de los espíritus»?','Isabel Allende','Su primera novela, de 1982.'],
-        ['¿Quién escribió «Rayuela»?','Julio Cortázar','Publicada en 1963.'],
-        ['¿Quién escribió «Pedro Páramo»?','Juan Rulfo','Publicada en 1955.']
-      ],3),
-      C('Mundos y lugares',[
-        ['¿Cómo se llama el pueblo donde transcurre «Cien años de soledad»?','Macondo'],
-        ['¿En qué región vive Frodo Bolsón al comienzo de «El Señor de los Anillos»?','La Comarca','En inglés, The Shire.'],
-        ['¿A qué colegio de magia asiste Harry Potter?','Hogwarts','Colegio Hogwarts de Magia y Hechicería.'],
-        ['¿A qué país mágico se llega por un armario en la obra de C. S. Lewis?','Narnia'],
-        ['¿Cuál es el nombre del asteroide del que viene El Principito?','B-612']
-      ])
-    ]
+    '--bg':c.bg,'--paper':c.paper,'--accent':c.accent,'--ink':c.ink,'--stamp':c.stamp,
+    '--bg-2':bg2,
+    '--edge':dark?mix(c.bg,'#ffffff',0.2):mix(c.bg,'#000000',0.2),
+    '--field':dark?mix(c.bg,'#000000',0.35):mix(c.bg,'#ffffff',0.55),
+    '--veil':mix(c.bg,'#000000',dark?0.45:0.15)+'fa',
+    '--paper-2':mix(c.paper,c.ink,0.08),'--paper-line':mix(c.paper,c.ink,0.22),'--ink-soft':mix(c.ink,c.paper,0.4),
+    '--accent-ink':onColor(c.accent,'#16120a','#ffffff'),
+    '--accent-text':contrast(c.accent,bg2)>=3?c.accent:text,
+    '--stamp-ink':onColor(c.stamp,'#16120a','#ffffff'),
+    '--text':text,'--muted':mix(text,c.bg,0.38),
+    '--color-scheme':dark?'dark':'light'
   };
 }
-function blank(){
-  var vals=[100,200,300,400,500];
+function applyTheme(){
+  var d=derive(curColors()),st=document.documentElement.style;
+  for(var k in d){if(k==='--color-scheme')st.colorScheme=d[k];else st.setProperty(k,d[k]);}
+}
+applyTheme();
+
+/* ---------- sets incluidos ---------- */
+function expandSet(b){
   return {
-    title:'Tablero de libros',timer:30,sound:true,sample:false,vals:vals,
-    teams:[{name:'Equipo 1',score:0},{name:'Equipo 2',score:0}],
-    cats:[1,2,3].map(function(i){return {name:'Categoría '+i,clues:vals.map(blankClue)};})
+    id:b.id,name:b.name,desc:b.desc,vals:[100,200,300,400,500],builtin:true,
+    cats:b.cats.map(function(c,ci){
+      return {name:c[0],clues:c[1].map(function(x,ri){
+        return {q:x[0],a:x[1],n:x[2]||'',d:!!(b.dbl&&b.dbl[0]===ci&&b.dbl[1]===ri),l:ROWLV[ri]||3,used:false,src:''};
+      })};
+    })
   };
 }
+var SETS=BUILTIN.map(expandSet);
 
-function normalize(o){
-  if(!o||typeof o!=='object')throw new Error('formato');
-  var str=function(v,max){return String(v==null?'':v).slice(0,max);};
-  var num=function(v,d,lo,hi){v=Number(v);return isFinite(v)?Math.min(hi,Math.max(lo,Math.round(v))):d;};
-  var cats=Array.isArray(o.cats)?o.cats.slice(0,MAX_CATS):[];
+/* ---------- normalización ---------- */
+function normClue(x,j,rows){
+  x=x||{};var l=Number(x.l);
+  return {q:str(x.q,600),a:str(x.a,300),n:str(x.n,400),d:!!x.d,
+    l:(l>=1&&l<=3)?Math.round(l):levelForRow(j,rows),used:!!x.used,src:str(x.src,80)};
+}
+function normCore(o){
+  var cats=Array.isArray(o&&o.cats)?o.cats.slice(0,MAX_CATS):[];
   if(!cats.length)throw new Error('sin categorías');
   var vals=Array.isArray(o.vals)?o.vals.slice(0,MAX_ROWS).map(function(v){return num(v,100,1,100000);}):[];
-  if(!vals.length)vals=[100,200,300,400,500];
+  if(!vals.length)vals=defaultVals(5);
+  return {vals:vals,cats:cats.map(function(c,i){
+    var cl=Array.isArray(c&&c.clues)?c.clues:[];
+    return {name:str(c&&c.name,60)||('Categoría '+(i+1)),
+      clues:vals.map(function(_,j){return normClue(cl[j],j,vals.length);})};
+  })};
+}
+function normBoard(o){
+  var core=normCore(o);
   var teams=(Array.isArray(o.teams)?o.teams.slice(0,MAX_TEAMS):[]).map(function(t,i){
     return {name:str(t&&t.name,30)||('Equipo '+(i+1)),score:num(t&&t.score,0,-10000000,10000000)};
   });
   if(!teams.length)teams=[{name:'Equipo 1',score:0},{name:'Equipo 2',score:0}];
-  return {
-    title:str(o.title,80)||'Tablero de libros',
-    timer:num(o.timer,30,5,600),
-    sound:o.sound!==false,
-    sample:!!o.sample,
-    vals:vals,
-    teams:teams,
-    cats:cats.map(function(c,i){
-      var cl=Array.isArray(c&&c.clues)?c.clues:[];
-      return {
-        name:str(c&&c.name,60)||('Categoría '+(i+1)),
-        clues:vals.map(function(_,j){
-          var x=cl[j]||{};
-          return {q:str(x.q,600),a:str(x.a,300),n:str(x.n,400),d:!!x.d,used:!!x.used};
-        })
-      };
-    })
-  };
+  return {title:str(o.title,80)||'Tablero de libros',timer:num(o.timer,30,5,600),sound:o.sound!==false,
+    setName:str(o.setName,60),vals:core.vals,cats:core.cats,teams:teams};
 }
+function normSet(o,i){
+  var core=normCore(o);
+  return {id:str(o.id,24)||uid(),name:str(o.name||o.title,60)||('Set '+(i+1)),desc:str(o.desc,160),vals:core.vals,cats:core.cats};
+}
+function cloneCats(cats,keepUsed){
+  return cats.map(function(c){
+    return {name:c.name,clues:c.clues.map(function(x){
+      return {q:x.q,a:x.a,n:x.n,d:x.d,l:x.l,src:x.src||'',used:keepUsed?!!x.used:false};
+    })};
+  });
+}
+function setParts(set){return {title:set.name,vals:set.vals.slice(),cats:cloneCats(set.cats),setName:set.name};}
 
 /* ---------- estado ---------- */
-var S=load();
-var view='play';
-var open=null;
-var R={};
-var editCat=0;
-var tmH=0;
-var DL=null;
-
-function load(){
-  try{var raw=localStorage.getItem(KEY);if(raw)return normalize(JSON.parse(raw));}catch(e){}
-  return sample();
+function loadBoard(){
+  var raw=readJSON(KEY);
+  if(raw&&!raw.sample){try{return normBoard(raw);}catch(e){}}
+  var p=setParts(SETS[0]);
+  return {title:p.title,timer:30,sound:true,setName:p.setName,vals:p.vals,cats:p.cats,
+    teams:[{name:'Equipo 1',score:0},{name:'Equipo 2',score:0},{name:'Equipo 3',score:0}]};
 }
+function loadLib(){
+  var raw=readJSON(LIBKEY),lib={sets:[],prev:null};
+  if(raw&&Array.isArray(raw.sets)){
+    raw.sets.slice(0,MAX_SAVED).forEach(function(s,i){try{lib.sets.push(normSet(s,i));}catch(e){}});
+  }
+  if(raw&&raw.prev){
+    try{var c=normCore(raw.prev);lib.prev={title:str(raw.prev.title,80)||'Tablero anterior',vals:c.vals,cats:c.cats,setName:str(raw.prev.setName,60)};}catch(e){}
+  }
+  return lib;
+}
+var S=loadBoard(),LIB=loadLib();
+var view='play',libTab='inc',lastView='';
+var open=null,R={},editCat=0,tmH=0,DL=null;
+var mixSel=[],mixOpen={};
+var RND={style:'cat',cols:5,rows:5,diff:'prog',saved:true};
+
 var saveT=0;
-function save(){
-  clearTimeout(saveT);
-  saveT=setTimeout(function(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}},250);
+function save(){clearTimeout(saveT);saveT=setTimeout(function(){writeJSON(KEY,S);},250);}
+function saveLib(){writeJSON(LIBKEY,LIB);}
+function edited(){S.setName='';save();}
+function hasContent(b){return b.cats.some(function(c){return c.clues.some(playable);});}
+function stashPrev(){
+  if(hasContent(S))LIB.prev={title:S.title,vals:S.vals.slice(),cats:cloneCats(S.cats,true),setName:S.setName||''};
+  saveLib();
 }
-function edited(){S.sample=false;save();}
+function applyParts(p){
+  stashPrev();
+  S.title=p.title;S.vals=p.vals;S.cats=p.cats;S.setName=p.setName||'';
+  editCat=0;save();
+}
+function restorePrev(){
+  if(!LIB.prev)return;
+  var p=LIB.prev;
+  LIB.prev=hasContent(S)?{title:S.title,vals:S.vals.slice(),cats:cloneCats(S.cats,true),setName:S.setName||''}:null;
+  S.title=p.title;S.vals=p.vals;S.cats=p.cats;S.setName=p.setName||'';
+  editCat=0;save();saveLib();
+}
 
-/* ---------- utilidades DOM ---------- */
+/* ---------- pool, sorteo y mezcla ---------- */
+function allSets(withSaved){return withSaved?SETS.concat(LIB.sets):SETS;}
+function normQ(s){return s.toLowerCase().replace(/\s+/g,' ').trim();}
+function buildPool(withSaved){
+  var seen={},clues=[],cats=[];
+  allSets(withSaved).forEach(function(s){
+    s.cats.forEach(function(c){
+      var list=[];
+      c.clues.forEach(function(x){
+        if(!x.q.trim()||!x.a.trim())return;
+        var k=normQ(x.q);if(seen[k])return;seen[k]=1;
+        var item={q:x.q,a:x.a,n:x.n,d:x.d,l:x.l,cat:c.name,set:s.name};
+        list.push(item);clues.push(item);
+      });
+      if(list.length)cats.push({name:c.name,set:s.name,clues:list});
+    });
+  });
+  return {clues:clues,cats:cats};
+}
+function targetLevel(r,rows,diff){
+  if(diff==='any')return 0;
+  if(diff==='prog')return levelForRow(r,rows);
+  return Number(diff);
+}
+function closest(list,target){
+  if(!list.length)return null;
+  if(!target)return list[Math.floor(Math.random()*list.length)];
+  var best=9,arr=[];
+  list.forEach(function(x){
+    var d=Math.abs(x.l-target);
+    if(d<best){best=d;arr=[x];}else if(d===best)arr.push(x);
+  });
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+function toClue(x,src){
+  if(!x)return blankClue(2);
+  return {q:x.q,a:x.a,n:x.n,d:false,l:x.l,used:false,src:src||''};
+}
+var DIFF_LABEL={prog:'progresiva',1:'fácil',2:'media',3:'difícil',any:'al azar'};
+function genRandom(o){
+  var P=buildPool(o.saved),rows=o.rows,n=o.cols,cats=[],short=false;
+  if(o.style!=='mix'){
+    var mx=0;P.cats.forEach(function(c){mx=Math.max(mx,c.clues.length);});
+    if(rows>mx)rows=mx;
+  }
+  var targets=[];for(var r=0;r<rows;r++)targets.push(targetLevel(r,rows,o.diff));
+  var order=targets.map(function(t,i){return i;}).sort(function(a,b){return targets[b]-targets[a];});
+  if(o.style==='mix'){
+    var taken={};
+    for(var c=0;c<n;c++){
+      var col=new Array(rows);
+      order.forEach(function(ri){
+        var cand=P.clues.filter(function(x){return !taken[x.q];});
+        var pick=closest(cand,targets[ri]);
+        if(pick){taken[pick.q]=1;col[ri]=toClue(pick,pick.cat);}else col[ri]=blankClue(2);
+      });
+      cats.push({name:'Sorpresa '+(c+1),clues:col});
+    }
+  }else{
+    var names={},chosen=[];
+    shuffle(P.cats.filter(function(c){return c.clues.length>=rows;})).forEach(function(c){
+      if(chosen.length<n&&!names[c.name]){names[c.name]=1;chosen.push(c);}
+    });
+    if(chosen.length<n)short=true;
+    chosen.forEach(function(c){
+      var left=c.clues.slice(),col=new Array(rows);
+      order.forEach(function(ri){
+        var pick=closest(left,targets[ri]);
+        left.splice(left.indexOf(pick),1);col[ri]=toClue(pick,'');
+      });
+      cats.push({name:c.name,clues:col});
+    });
+  }
+  if(cats.length>=3&&rows>=3){
+    var cc=cats[Math.floor(Math.random()*cats.length)];
+    cc.clues[rows-1].d=true;
+  }
+  return {title:'Tablero al azar',vals:defaultVals(rows),cats:cats,
+    setName:'Al azar, dificultad '+DIFF_LABEL[o.diff],short:short};
+}
+function catList(){
+  var out=[];
+  allSets(true).forEach(function(s){
+    s.cats.forEach(function(c,ci){out.push({key:s.id+':'+ci,set:s.name,setId:s.id,name:c.name,clues:c.clues,vals:s.vals});});
+  });
+  return out;
+}
+function buildMix(keys){
+  var list=catList(),picked=[];
+  keys.forEach(function(k){for(var i=0;i<list.length;i++)if(list[i].key===k){picked.push(list[i]);break;}});
+  if(!picked.length)return null;
+  var rows=0;picked.forEach(function(p){rows=Math.max(rows,p.clues.length);});
+  var vals=picked[0].vals.length===rows?picked[0].vals.slice():defaultVals(rows);
+  var cats=picked.map(function(p){
+    var clues=[];
+    for(var j=0;j<rows;j++){
+      var x=p.clues[j];
+      clues.push(x?{q:x.q,a:x.a,n:x.n,d:x.d,l:x.l,src:'',used:false}:blankClue(levelForRow(j,rows)));
+    }
+    return {name:p.name,clues:clues};
+  });
+  return {title:'Mezcla de categorías',vals:vals,cats:cats,setName:'Mezcla'};
+}
+
+/* ---------- DOM ---------- */
 var $=function(id){return document.getElementById(id);};
-var app=$('app'),overlay=$('overlay'),toastEl=$('toast');
-
+var app=$('app'),overlay=$('overlay'),cover=$('cover'),toastEl=$('toast');
 function append(e,c){
   if(c==null||c===false)return;
   if(Array.isArray(c)){c.forEach(function(x){append(e,x);});return;}
@@ -357,16 +911,12 @@ function h(tag,props){
   return e;
 }
 function act(fn){
-  return function(e){
-    fn(e);
-    if(e&&e.detail&&e.currentTarget&&e.currentTarget.blur)e.currentTarget.blur();
-  };
+  return function(e){fn(e);if(e&&e.detail&&e.currentTarget&&e.currentTarget.blur)e.currentTarget.blur();};
 }
 var toastT=0;
 function toast(m){
   toastEl.textContent=m;toastEl.hidden=false;
-  clearTimeout(toastT);
-  toastT=setTimeout(function(){toastEl.hidden=true;},2800);
+  clearTimeout(toastT);toastT=setTimeout(function(){toastEl.hidden=true;},2800);
 }
 function confirmBtn(label,cls,fn,sure){
   var b=h('button',{class:cls,type:'button',text:label});
@@ -380,14 +930,18 @@ function confirmBtn(label,cls,fn,sure){
   });
   return b;
 }
+function fld(id,label,input){return h('div',{class:'fld'},h('label',{for:id,text:label}),input);}
+function chips(options,current,onpick,label){
+  return h('div',{class:'cat-tabs',role:'group','aria-label':label||null},options.map(function(o){
+    var on=String(o[0])===String(current);
+    return h('button',{class:'btn'+(on?' on':''),type:'button','aria-pressed':String(on),disabled:!!o[2],onclick:function(){onpick(o[0]);},text:o[1]});
+  }));
+}
 
 /* ---------- sonido, pantalla completa, pantalla encendida ---------- */
 var ac=null;
 function ensureAudio(){
-  try{
-    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
-    if(ac.state==='suspended')ac.resume();
-  }catch(e){}
+  try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();}catch(e){}
 }
 function beep(){
   if(!S.sound)return;
@@ -399,8 +953,7 @@ function beep(){
       g.gain.setValueAtTime(0.0001,t);
       g.gain.exponentialRampToValueAtTime(0.15,t+0.02);
       g.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
-      o.connect(g);g.connect(ac.destination);
-      o.start(t);o.stop(t+0.22);
+      o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+0.22);
     });
   }catch(e){}
 }
@@ -413,29 +966,27 @@ function toggleFS(){
     if(p&&p.catch)p.catch(function(){toast(msg);});
   }catch(e){toast(msg);}
 }
-document.addEventListener('fullscreenchange',function(){
-  var b=$('fsBtn');if(b)b.textContent=fsText();
-});
+document.addEventListener('fullscreenchange',function(){var b=$('fsBtn');if(b)b.textContent=fsText();});
 var wl=null;
 function keepAwake(){
   try{
     if(navigator.wakeLock&&!wl){
-      navigator.wakeLock.request('screen').then(function(l){
-        wl=l;l.addEventListener('release',function(){wl=null;});
-      }).catch(function(){});
+      navigator.wakeLock.request('screen').then(function(l){wl=l;l.addEventListener('release',function(){wl=null;});}).catch(function(){});
     }
   }catch(e){}
 }
 document.addEventListener('pointerdown',keepAwake,{once:true});
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')keepAwake();});
 
-/* ---------- render ---------- */
+/* ---------- vistas ---------- */
 function render(){
-  var ed=app.querySelector('.editor');
-  var top=ed?ed.scrollTop:0;
-  app.replaceChildren(bar(),view==='play'?playStage():editStage());
-  var ed2=app.querySelector('.editor');
-  if(ed2)ed2.scrollTop=top;
+  var sc=app.querySelector('.scroller');
+  var top=(sc&&lastView===view)?sc.scrollTop:0;
+  var body=view==='play'?playStage():view==='edit'?editStage():view==='sets'?setsStage():themeStage();
+  app.replaceChildren(bar(),body);
+  var sc2=app.querySelector('.scroller');
+  if(sc2)sc2.scrollTop=top;
+  lastView=view;
 }
 function setView(v){view=v;render();}
 
@@ -446,16 +997,21 @@ function resetGame(){
 }
 
 function bar(){
-  var tools=h('div',{class:'tools'},
-    h('button',{class:'btn'+(view==='play'?' on':''),type:'button','aria-pressed':String(view==='play'),onclick:function(){setView('play');},text:'Jugar'}),
-    h('button',{class:'btn'+(view==='edit'?' on':''),type:'button','aria-pressed':String(view==='edit'),onclick:function(){setView('edit');},text:'Editar'}),
-    view==='play'?[
-      h('button',{class:'btn',type:'button','aria-pressed':String(!!S.sound),onclick:function(){S.sound=!S.sound;save();render();},text:S.sound?'Sonido: sí':'Sonido: no'}),
-      h('button',{class:'btn',type:'button',id:'fsBtn',onclick:toggleFS,text:fsText()}),
-      confirmBtn('Reiniciar partida','btn',resetGame)
-    ]:null
-  );
-  return h('div',{class:'bar'},h('h1',{id:'ttl',text:S.title||'Tablero de libros'}),tools);
+  var nav=[['play','Jugar'],['edit','Editar'],['sets','Sets'],['theme','Colores']].map(function(p){
+    return h('button',{class:'btn'+(view===p[0]?' on':''),type:'button','aria-pressed':String(view===p[0]),onclick:function(){setView(p[0]);},text:p[1]});
+  });
+  var tools=view==='play'?[
+    h('button',{class:'btn',type:'button',onclick:showCover,text:'Portada'}),
+    h('button',{class:'btn',type:'button','aria-pressed':String(!!S.sound),onclick:function(){S.sound=!S.sound;save();render();},text:S.sound?'Sonido: sí':'Sonido: no'}),
+    h('button',{class:'btn',type:'button',id:'fsBtn',onclick:toggleFS,text:fsText()}),
+    confirmBtn('Reiniciar partida','btn',resetGame)
+  ]:null;
+  return h('div',{class:'bar'},
+    h('div',{class:'brand'},
+      h('img',{class:'logo',src:LOGO,alt:'Logo del club de lectura',onclick:showCover}),
+      h('h1',{id:'ttl',text:S.title||'Tablero de libros'})),
+    h('div',{class:'tools'},nav),
+    tools?h('div',{class:'tools'},tools):null);
 }
 
 function playStage(){
@@ -467,16 +1023,17 @@ function playStage(){
   S.vals.forEach(function(v,ri){
     S.cats.forEach(function(c,ci){
       var cl=c.clues[ri];
-      board.append(h('button',{ 
-        class:'tile'+(cl.used?' used':''),type:'button','data-k':ci+'-'+ri,
-        'aria-label':c.name+', '+fmt(v)+' puntos'+(cl.used?', ya jugada':''),
+      var empty=!playable(cl);
+      board.append(h('button',{
+        class:'tile'+((cl.used||empty)?' used':''),type:'button','data-k':ci+'-'+ri,disabled:empty,
+        'aria-label':c.name+', '+fmt(v)+' puntos'+(empty?', sin pregunta':(cl.used?', ya jugada':'')),
         onclick:function(){openClue(ci,ri);}
       },h('span',{text:fmt(v)})));
     });
   });
   var scores=h('div',{class:'scores'},S.teams.map(teamCard));
-  return h('div',{class:'stage'},
-    S.sample?h('p',{class:'note',text:'Tablero de ejemplo. Pulsa Editar para escribir tus propias preguntas.'}):null,
+  return h('div',{class:'scroller stage'},
+    S.setName?h('p',{class:'note',text:'Set: '+S.setName+' · '+countQ(S.cats)+' preguntas. Cambia de set o arma otro en la pestaña Sets.'}):null,
     h('div',{class:'board-wrap'},board),
     scores);
 }
@@ -497,18 +1054,35 @@ function teamCard(t,i){
   return card;
 }
 
+/* ---------- portada ---------- */
+function showCover(){
+  cover.replaceChildren(h('div',{class:'cover-in'},
+    h('div',{class:'fich'},
+      h('img',{class:'fich-logo',src:LOGO,alt:'Logo del club de lectura'}),
+      h('div',{class:'fich-rule'}),
+      h('h2',{class:'fich-title',text:S.title||'Tablero de libros'}),
+      h('p',{class:'fich-sub',text:S.cats.length+' categorías · '+countQ(S.cats)+' preguntas'})),
+    h('div',{class:'cover-act'},
+      h('button',{class:'btn primary',type:'button',id:'cv-go',onclick:function(){hideCover(false);},text:'Empezar'}),
+      h('button',{class:'btn',type:'button',onclick:function(){hideCover(true);},text:'Empezar en pantalla completa'}))));
+  cover.hidden=false;app.inert=true;
+  var b=$('cv-go');if(b)b.focus();
+}
+function hideCover(fs){
+  cover.hidden=true;cover.replaceChildren();app.inert=false;
+  ensureAudio();
+  if(fs)toggleFS();
+}
+
 /* ---------- pregunta abierta ---------- */
 function openClue(ci,ri){
   var cat=S.cats[ci],cl=cat.clues[ri];
   var val=S.vals[ri]*(cl.d?2:1);
   open={ci:ci,ri:ri,val:val,revealed:false,dirty:false,tm:{total:S.timer,left:S.timer,running:false,end:0}};
   buildOverlay(cat,cl,val);
-  overlay.hidden=false;
-  app.inert=true;
-  keepAwake();
+  overlay.hidden=false;app.inert=true;keepAwake();
   R.card.focus();
 }
-
 function buildOverlay(cat,cl,val){
   R={};
   R.tNum=h('span',{class:'tnum',text:String(S.timer)});
@@ -526,8 +1100,7 @@ function buildOverlay(cat,cl,val){
     var sc=h('span',{class:'asc',text:fmt(t.score)});
     R.sc.push(sc);
     var row=h('div',{class:'aw'},
-      h('span',{class:'anm',text:(i+1)+'. '+t.name}),
-      sc,
+      h('span',{class:'anm',text:(i+1)+'. '+t.name}),sc,
       h('button',{class:'btn good',type:'button','aria-label':'Sumar '+fmt(val)+' a '+t.name,onclick:act(function(){giveTo(i,1);}),text:'+'+fmt(val)}),
       h('button',{class:'btn bad',type:'button','aria-label':'Restar '+fmt(val)+' a '+t.name,onclick:act(function(){giveTo(i,-1);}),text:'−'+fmt(val)}));
     row.style.setProperty('--tc',TEAM_COLORS[i%TEAM_COLORS.length]);
@@ -536,9 +1109,12 @@ function buildOverlay(cat,cl,val){
   var head=h('div',{class:'card-head'},
     h('span',{class:'ccat',text:cat.name}),
     cl.d?h('span',{class:'dbl',text:'Pregunta doble ×2'}):null,
-    h('span',{class:'cval',text:fmt(val)+' pts'}));
+    h('span',{class:'lvl',text:'Nivel: '+LEVELS[cl.l||2]}),
+    h('span',{class:'cval',text:fmt(val)+' pts'}),
+    h('img',{class:'wm',src:LOGO,alt:''}));
   var body=h('div',{class:'cbody'},h('div',{class:'cin'},
     h('p',{class:'q',text:cl.q||'Esta casilla todavía no tiene pregunta. Escríbela en Editar.'}),
+    cl.src?h('p',{class:'srcnote',text:'Categoría de origen: '+cl.src}):null,
     R.ans));
   R.card=h('div',{class:'card',tabindex:'-1',role:'dialog','aria-modal':'true','aria-label':cat.name+', '+fmt(val)+' puntos'},
     head,body,R.timer,
@@ -551,7 +1127,6 @@ function buildOverlay(cat,cl,val){
   overlay.replaceChildren(R.card);
   tmUI();
 }
-
 function toggleReveal(){
   if(!open)return;
   var show=R.ans.hidden;
@@ -562,10 +1137,8 @@ function toggleReveal(){
 function giveTo(i,sign){
   if(!open||!S.teams[i])return;
   var t=S.teams[i];
-  t.score+=sign*open.val;
-  open.dirty=true;
-  R.sc[i].textContent=fmt(t.score);
-  save();
+  t.score+=sign*open.val;open.dirty=true;
+  R.sc[i].textContent=fmt(t.score);save();
   toast(t.name+' '+(sign>0?'+':'−')+fmt(open.val));
 }
 function closeClue(){
@@ -575,8 +1148,7 @@ function closeClue(){
   var key=open.ci+'-'+open.ri;
   if(open.revealed||open.dirty)cl.used=true;
   open=null;R={};
-  overlay.hidden=true;overlay.replaceChildren();
-  app.inert=false;
+  overlay.hidden=true;overlay.replaceChildren();app.inert=false;
   save();render();
   var t=app.querySelector('.tile[data-k="'+key+'"]');
   if(t&&!t.classList.contains('used'))t.focus();
@@ -604,9 +1176,7 @@ function tmStart(){
   var t=open.tm;
   if(t.left<=0)t.left=t.total;
   t.running=true;t.end=performance.now()+t.left*1000;
-  ensureAudio();
-  clearInterval(tmH);tmH=setInterval(tick,100);
-  tmUI();
+  ensureAudio();clearInterval(tmH);tmH=setInterval(tick,100);tmUI();
 }
 function tmPause(){
   var t=open.tm;
@@ -616,24 +1186,20 @@ function tmPause(){
 function tmToggle(){if(!open)return;if(open.tm.running)tmPause();else tmStart();}
 function tmReset(){
   if(!open)return;
-  var t=open.tm;
-  t.running=false;clearInterval(tmH);t.left=t.total;tmUI();
+  var t=open.tm;t.running=false;clearInterval(tmH);t.left=t.total;tmUI();
 }
 
 /* ---------- editor ---------- */
-function fld(id,label,input){return h('div',{class:'fld'},h('label',{for:id,text:label}),input);}
-
 function editStage(){
-  return h('div',{class:'editor'},h('div',{class:'ed-in'},secGame(),secBoard(),secIO()));
+  return h('div',{class:'scroller editor'},h('div',{class:'ed-in'},secGame(),secBoard()));
 }
-
 function secGame(){
   var teams=h('div',{class:'stack'},S.teams.map(function(t,i){
     return h('div',{class:'rowline'},
       h('input',{id:'ed-team-'+i,type:'text',maxlength:30,value:t.name,'aria-label':'Nombre del equipo '+(i+1),
-        oninput:function(e){t.name=e.target.value;edited();}}),
+        oninput:function(e){t.name=e.target.value;save();}}),
       h('button',{class:'btn',type:'button',disabled:S.teams.length<=1,'aria-label':'Quitar equipo '+(i+1),
-        onclick:function(){S.teams.splice(i,1);edited();render();},text:'Quitar'}));
+        onclick:function(){S.teams.splice(i,1);save();render();},text:'Quitar'}));
   }));
   return h('section',{class:'ed-sec'},
     h('h2',{text:'Partida'}),
@@ -641,13 +1207,12 @@ function secGame(){
       fld('ed-title','Título del tablero',h('input',{id:'ed-title',type:'text',maxlength:80,value:S.title,
         oninput:function(e){S.title=e.target.value;edited();var t=$('ttl');if(t)t.textContent=S.title||'Tablero de libros';}})),
       fld('ed-timer','Segundos por pregunta (5 a 600)',h('input',{id:'ed-timer',type:'number',min:5,max:600,value:S.timer,
-        oninput:function(e){var v=parseInt(e.target.value,10);if(v>=5&&v<=600){S.timer=v;edited();}}}))),
+        oninput:function(e){var v=parseInt(e.target.value,10);if(v>=5&&v<=600){S.timer=v;save();}}}))),
     h('div',{class:'fld'},h('span',{class:'lbl',text:'Equipos (hasta '+MAX_TEAMS+')'}),teams),
     h('div',{class:'rowline'},
       h('button',{class:'btn',type:'button',disabled:S.teams.length>=MAX_TEAMS,
-        onclick:function(){S.teams.push({name:'Equipo '+(S.teams.length+1),score:0});edited();render();},text:'Agregar equipo'})));
+        onclick:function(){S.teams.push({name:'Equipo '+(S.teams.length+1),score:0});save();render();},text:'Agregar equipo'})));
 }
-
 function secBoard(){
   if(editCat>=S.cats.length)editCat=S.cats.length-1;
   var cat=S.cats[editCat];
@@ -666,28 +1231,26 @@ function secBoard(){
   var addRow=h('button',{class:'btn',type:'button',disabled:S.vals.length>=MAX_ROWS,onclick:function(){
     var l=S.vals[S.vals.length-1],p=S.vals[S.vals.length-2];
     S.vals.push(l+((p!=null&&l>p)?(l-p):100));
-    S.cats.forEach(function(c){c.clues.push(blankClue());});
+    S.cats.forEach(function(c){c.clues.push(blankClue(3));});
     edited();render();
   },text:'Agregar fila'});
   var delRow=confirmBtn('Quitar última fila','btn',function(){
     S.vals.pop();S.cats.forEach(function(c){c.clues.pop();});edited();render();
   });
   if(S.vals.length<=1)delRow.disabled=true;
-
   var tabs=h('div',{class:'cat-tabs',role:'group','aria-label':'Categorías'},
     S.cats.map(function(c,i){
       return h('button',{class:'btn'+(i===editCat?' on':''),type:'button','aria-pressed':String(i===editCat),
         onclick:function(){editCat=i;render();},text:(i+1)+'. '+(c.name||'Sin nombre')});
     }),
     h('button',{class:'btn',type:'button',disabled:S.cats.length>=MAX_CATS,onclick:function(){
-      S.cats.push({name:'Categoría '+(S.cats.length+1),clues:S.vals.map(blankClue)});
+      S.cats.push({name:'Categoría '+(S.cats.length+1),clues:S.vals.map(function(_,j){return blankClue(levelForRow(j,S.vals.length));})});
       editCat=S.cats.length-1;edited();render();
     },text:'+ Categoría'}));
   var delCat=confirmBtn('Eliminar esta categoría','btn',function(){
     S.cats.splice(editCat,1);editCat=Math.max(0,editCat-1);edited();render();
   });
   if(S.cats.length<=1)delCat.disabled=true;
-
   var ceds=S.vals.map(function(v,i){
     var cl=cat.clues[i],k=editCat+'-'+i;
     return h('div',{class:'ced'},
@@ -700,95 +1263,298 @@ function secBoard(){
             oninput:function(e){cl.a=e.target.value;edited();}})),
           fld('ed-n-'+k,'Dato extra (opcional)',h('input',{id:'ed-n-'+k,type:'text',maxlength:400,value:cl.n,
             oninput:function(e){cl.n=e.target.value;edited();}}))),
-        h('label',{class:'chk'},
-          h('input',{id:'ed-d-'+k,type:'checkbox',checked:cl.d,onchange:function(e){cl.d=e.target.checked;edited();}}),
-          'Pregunta doble (vale ×2)')));
+        h('div',{class:'grid2'},
+          fld('ed-l-'+k,'Dificultad (la usa el tablero al azar)',h('select',{id:'ed-l-'+k,onchange:function(e){cl.l=Number(e.target.value);edited();}},
+            [1,2,3].map(function(v){return h('option',{value:String(v),selected:cl.l===v,text:LEVELS[v]});}))),
+          h('label',{class:'chk'},
+            h('input',{id:'ed-d-'+k,type:'checkbox',checked:cl.d,onchange:function(e){cl.d=e.target.checked;edited();}}),
+            'Pregunta doble (vale ×2)'))));
   });
-
   return h('section',{class:'ed-sec'},
     h('h2',{text:'Tablero'}),
+    h('p',{class:'help',text:'Las casillas sin pregunta ni respuesta quedan vacías en el tablero. Para guardar este tablero y volver a usarlo, ve a Sets, pestaña Mis sets.'}),
     h('div',{class:'fld'},h('span',{class:'lbl',text:'Puntos de cada fila (valen para todas las categorías)'}),vals),
     h('div',{class:'rowline wrap'},addRow,delRow),
     h('div',{class:'fld'},h('span',{class:'lbl',text:'Categorías (hasta '+MAX_CATS+')'}),tabs),
     fld('ed-cat-name-'+editCat,'Nombre de la categoría',h('input',{id:'ed-cat-name-'+editCat,type:'text',maxlength:60,value:cat.name,
-      oninput:function(e){
-        cat.name=e.target.value;edited();
-      },onchange:function(){render();}})),
+      oninput:function(e){cat.name=e.target.value;edited();},onchange:function(){render();}})),
     h('div',{class:'stack'},ceds),
     h('div',{class:'rowline'},delCat));
 }
 
-/* guardar y cargar */
-function clean(){
-  var c=JSON.parse(JSON.stringify(S));
-  delete c.sample;
-  c.teams.forEach(function(t){t.score=0;});
-  c.cats.forEach(function(k){k.clues.forEach(function(x){x.used=false;});});
-  return c;
+/* ---------- archivos ---------- */
+function setToFile(name,desc,vals,cats){
+  return {kind:'tablero-set',v:2,name:name,desc:desc||'',vals:vals.slice(),
+    cats:cats.map(function(c){
+      return {name:c.name,clues:c.clues.map(function(x){
+        return {q:x.q,a:x.a,n:x.n,d:x.d,l:x.l,src:x.src||undefined};
+      })};
+    })};
 }
-function code(){return JSON.stringify(clean(),null,1);}
-function fileName(){
-  var s=(S.title||'tablero').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-  return (s||'tablero')+'.json';
+function saveJSON(name,obj){
+  if(!DL){toast('Guardar archivos no está disponible aquí. Usa «Copiar código».');return;}
+  DL.save({filename:slug(name)+'.json',data:JSON.stringify(obj,null,1)})
+    .then(function(){toast('Archivo guardado.');})
+    .catch(function(e){if(e&&e.code==='declined')return;toast('No se pudo guardar el archivo. Prueba con «Copiar código».');});
 }
-function saveFile(){
-  if(!DL)return;
-  DL.save({filename:fileName(),data:code()}).then(function(){toast('Archivo guardado.');}).catch(function(e){
-    if(e&&e.code==='declined')return;
-    toast('No se pudo guardar el archivo. Copia el código en su lugar.');
-  });
+function copyText(txt){
+  var ta=$('io-text');
+  var fb=function(){if(ta){ta.value=txt;ta.focus();ta.select();}toast('Selecciona el texto y cópialo con Ctrl+C.');};
+  try{navigator.clipboard.writeText(txt).then(function(){toast('Código copiado.');}).catch(fb);}catch(e){fb();}
 }
-function copyCode(){
-  var d=code();
-  var fallback=function(){
-    var ta=$('io-text');
-    if(ta){ta.value=d;ta.focus();ta.select();}
-    toast('Selecciona el texto y cópialo con Ctrl+C.');
-  };
+function upsertSet(set){
+  var low=set.name.toLowerCase(),found=-1;
+  LIB.sets.forEach(function(s,i){if(s.name.toLowerCase()===low)found=i;});
+  if(found>=0){set.id=LIB.sets[found].id;LIB.sets[found]=set;return 'update';}
+  if(LIB.sets.length>=MAX_SAVED)return 'full';
+  LIB.sets.push(set);return 'add';
+}
+function importText(txt){
   try{
-    navigator.clipboard.writeText(d).then(function(){toast('Código copiado.');}).catch(fallback);
-  }catch(e){fallback();}
+    var o=JSON.parse(txt);
+    var list=(o&&Array.isArray(o.sets))?o.sets.slice(0,50):[o];
+    var added=0;
+    list.forEach(function(x,i){
+      var s=normSet(x,i);s.id=uid();
+      var r=upsertSet(s);if(r!=='full')added++;
+    });
+    saveLib();render();
+    toast(added===1?'Set agregado a Mis sets.':added+' sets agregados a Mis sets.');
+  }catch(e){toast('Ese contenido no parece un set válido.');}
 }
-function loadText(txt){
-  try{
-    var n=normalize(JSON.parse(txt));
-    n.sample=false;S=n;editCat=0;save();render();
-    toast('Tablero cargado.');
-  }catch(e){toast('Ese contenido no parece un tablero válido.');}
+
+/* ---------- sets ---------- */
+function setsStage(){
+  var tabs=chips([['inc','Sets incluidos'],['mine','Mis sets'],['mix','Mezclar categorías'],['rand','Tablero al azar']],libTab,
+    function(v){libTab=v;render();},'Secciones de sets');
+  var body=libTab==='inc'?secIncluded():libTab==='mine'?secMine():libTab==='mix'?secMix():secRandom();
+  return h('div',{class:'scroller editor'},h('div',{class:'ed-in'},tabs,body));
 }
-function secIO(){
-  var ta=h('textarea',{id:'io-text',rows:5,placeholder:'Pega aquí el código de un tablero'});
+function playSet(set){
+  applyParts(setParts(set));
+  view='play';render();
+  toast('Set cargado: '+set.name);
+}
+function setCard(set,extra){
+  return h('div',{class:'set-card'},
+    h('h3',{text:set.name}),
+    set.desc?h('p',{text:set.desc}):null,
+    h('div',{class:'meta',text:set.cats.length+' categorías · '+countQ(set.cats)+' preguntas'}),
+    h('div',{class:'meta',text:set.cats.map(function(c){return c.name;}).join(' · ')}),
+    h('div',{class:'acts'},
+      h('button',{class:'btn primary',type:'button',onclick:function(){playSet(set);},text:'Jugar este set'}),
+      extra));
+}
+function secIncluded(){
   return h('section',{class:'ed-sec'},
-    h('h2',{text:'Guardar y cargar'}),
-    h('p',{class:'help',text:'El tablero se guarda solo en este navegador. Para llevarlo a otro computador, guárdalo como archivo o copia su código.'}),
+    h('h2',{text:'Sets incluidos'}),
+    h('p',{class:'help',text:'Cada set trae 5 categorías con 5 preguntas, de fácil a difícil. Al cargar uno se mantienen los equipos y sus puntajes, así puedes encadenar rondas. Usa «Reiniciar partida» en Jugar para empezar de cero.'}),
+    h('div',{class:'set-grid'},SETS.map(function(s){return setCard(s);})));
+}
+function secMine(){
+  var nameIn=h('input',{id:'sv-name',type:'text',maxlength:60,value:S.title||'',placeholder:'Nombre del set'});
+  var saved=LIB.sets.length?h('div',{class:'saved'},LIB.sets.map(function(s){
+    return h('div',{class:'saved-row'},
+      h('div',{class:'info'},
+        h('span',{class:'nm',text:s.name}),
+        h('span',{class:'meta',text:s.cats.length+' categorías · '+countQ(s.cats)+' preguntas'})),
+      h('div',{class:'acts'},
+        h('button',{class:'btn primary',type:'button',onclick:function(){playSet(s);},text:'Cargar'}),
+        h('button',{class:'btn',type:'button',onclick:function(){saveJSON(s.name,setToFile(s.name,s.desc,s.vals,s.cats));},text:'Exportar'}),
+        confirmBtn('Eliminar','btn',function(){
+          LIB.sets=LIB.sets.filter(function(x){return x!==s;});saveLib();render();toast('Set eliminado.');
+        },'¿Eliminar? Pulsa otra vez')));
+  })):h('p',{class:'help',text:'Todavía no tienes sets guardados. Arma un tablero en Editar, o mezcla categorías, y guárdalo aquí.'});
+  var ta=h('textarea',{id:'io-text',rows:5,placeholder:'Pega aquí el código de un set'});
+  return h('div',{class:'ed-in'},
+    h('section',{class:'ed-sec'},
+      h('h2',{text:'Guardar el tablero actual'}),
+      h('p',{class:'help',text:'Guarda las categorías y preguntas del tablero que tienes ahora. Los equipos y puntajes no se guardan. Si ya existe un set con ese nombre, se actualiza.'}),
+      fld('sv-name','Nombre del set',nameIn),
+      h('div',{class:'rowline wrap'},
+        h('button',{class:'btn primary',type:'button',onclick:function(){
+          var nm=nameIn.value.trim();
+          if(!nm){toast('Escribe un nombre para el set.');return;}
+          if(!hasContent(S)){toast('El tablero no tiene preguntas todavía.');return;}
+          var set=normSet({name:nm,vals:S.vals,cats:S.cats},0);set.id=uid();
+          var r=upsertSet(set);
+          if(r==='full'){toast('Llegaste al máximo de sets guardados. Elimina alguno.');return;}
+          saveLib();render();toast(r==='update'?'Set actualizado.':'Set guardado.');
+        },text:'Guardar set'}),
+        h('button',{class:'btn',type:'button',onclick:function(){saveJSON(S.title,setToFile(S.title,'',S.vals,S.cats));},text:'Exportar tablero (.json)'}),
+        h('button',{class:'btn',type:'button',onclick:function(){copyText(JSON.stringify(setToFile(S.title,'',S.vals,S.cats)));},text:'Copiar código'}))),
+    h('section',{class:'ed-sec'},
+      h('h2',{text:'Mis sets ('+LIB.sets.length+')'}),
+      h('p',{class:'help',text:'Se guardan en este navegador. Para usarlos en otro computador, expórtalos y cárgalos allá.'}),
+      saved,
+      LIB.sets.length?h('div',{class:'rowline wrap'},
+        h('button',{class:'btn',type:'button',onclick:function(){
+          saveJSON('mis-sets',{kind:'tablero-pack',v:2,sets:LIB.sets.map(function(s){return setToFile(s.name,s.desc,s.vals,s.cats);})});
+        },text:'Exportar todos'})):null),
+    h('section',{class:'ed-sec'},
+      h('h2',{text:'Cargar sets'}),
+      fld('io-file','Desde un archivo .json (un set o varios)',h('input',{id:'io-file',type:'file',accept:'.json,application/json,text/plain',
+        onchange:function(e){
+          var f=e.target.files&&e.target.files[0];
+          if(!f)return;
+          if(f.size>3000000){toast('El archivo es demasiado grande.');return;}
+          var r=new FileReader();
+          r.onload=function(){importText(String(r.result));};
+          r.onerror=function(){toast('No se pudo leer el archivo.');};
+          r.readAsText(f);
+        }})),
+      fld('io-text','O pegando el código',ta),
+      h('div',{class:'rowline wrap'},
+        h('button',{class:'btn',type:'button',onclick:function(){importText(ta.value);},text:'Agregar a Mis sets'}))),
+    h('section',{class:'ed-sec'},
+      h('h2',{text:'Otras acciones'}),
+      h('div',{class:'rowline wrap'},
+        confirmBtn('Empezar con tablero vacío','btn',function(){
+          applyParts({title:'Tablero nuevo',vals:defaultVals(5),setName:'',cats:[1,2,3].map(function(i){
+            return {name:'Categoría '+i,clues:defaultVals(5).map(function(_,j){return blankClue(levelForRow(j,5));})};})});
+          view='edit';render();toast('Tablero vacío listo para editar.');
+        },'¿Reemplazar el tablero? Pulsa otra vez'),
+        LIB.prev?h('button',{class:'btn',type:'button',onclick:function(){
+          restorePrev();render();toast('Tablero anterior recuperado.');
+        },text:'Recuperar tablero anterior'}):null),
+      h('p',{class:'help',text:'Cada vez que cargas un set, el tablero que tenías queda guardado como «tablero anterior» por si lo necesitas.'})));
+}
+function secMix(){
+  var all=allSets(true);
+  var valid={};catList().forEach(function(x){valid[x.key]=1;});
+  mixSel=mixSel.filter(function(k){return valid[k];});
+  var count=h('span',{class:'lbl'});
+  var buildBtn=h('button',{class:'btn primary',type:'button',onclick:function(){
+    var p=buildMix(mixSel);
+    if(!p){toast('Marca al menos una categoría.');return;}
+    applyParts(p);view='play';render();toast('Tablero armado con '+p.cats.length+' categorías.');
+  },text:'Armar tablero con la selección'});
+  var boxes=[];
+  function refresh(){
+    count.textContent='Seleccionadas: '+mixSel.length+' de '+MAX_CATS;
+    buildBtn.disabled=mixSel.length<1;
+    boxes.forEach(function(b){if(!b.checked)b.disabled=mixSel.length>=MAX_CATS;});
+  }
+  var groups=all.map(function(s,si){
+    var items=s.cats.map(function(c,ci){
+      var key=s.id+':'+ci;
+      var box=h('input',{type:'checkbox',id:'mx-'+s.id+'-'+ci,checked:mixSel.indexOf(key)>=0,onchange:function(e){
+        var i=mixSel.indexOf(key);
+        if(e.target.checked&&i<0)mixSel.push(key);
+        if(!e.target.checked&&i>=0)mixSel.splice(i,1);
+        refresh();
+      }});
+      boxes.push(box);
+      return h('label',{class:'chk'},box,c.name);
+    });
+    var det=h('details',{class:'mix-grp',open:(mixOpen[s.id]!==undefined?mixOpen[s.id]:si===0),ontoggle:function(e){mixOpen[s.id]=e.target.open;}},
+      h('summary',{text:s.name}),h('div',{class:'mix-list'},items));
+    return det;
+  });
+  refresh();
+  return h('section',{class:'ed-sec'},
+    h('h2',{text:'Mezclar categorías'}),
+    h('p',{class:'help',text:'Marca categorías de cualquier set, incluidos los tuyos. Las columnas salen en el orden en que las marcas.'}),
+    h('div',{class:'rowline wrap'},buildBtn,
+      h('button',{class:'btn',type:'button',onclick:function(){
+        mixSel=shuffle(catList().map(function(x){return x.key;})).slice(0,5);render();
+      },text:'Elegir 5 al azar'}),
+      h('button',{class:'btn',type:'button',onclick:function(){mixSel=[];render();},text:'Limpiar'}),
+      count),
+    h('div',{class:'stack'},groups));
+}
+function secRandom(){
+  var P=buildPool(RND.saved);
+  var cnt=[0,0,0,0];P.clues.forEach(function(x){cnt[x.l]++;});
+  var maxRows=0;P.cats.forEach(function(c){maxRows=Math.max(maxRows,c.clues.length);});
+  var byCat=RND.style==='cat';
+  var rowMax=byCat?Math.max(3,Math.min(6,maxRows)):6;
+  if(RND.rows>rowMax)RND.rows=rowMax;
+  if(byCat&&['1','2','3'].indexOf(String(RND.diff))>=0)RND.diff='prog';
+  var catsOk=P.cats.filter(function(c){return c.clues.length>=RND.rows;}).length;
+  var sel=function(id,label,from,to,key){
+    var opts=[];for(var i=from;i<=to;i++)opts.push(h('option',{value:String(i),selected:RND[key]===i,text:String(i)}));
+    return fld(id,label,h('select',{id:id,onchange:function(e){RND[key]=Number(e.target.value);render();}},opts));
+  };
+  return h('section',{class:'ed-sec'},
+    h('h2',{text:'Tablero al azar'}),
+    h('p',{class:'help',text:'Arma un tablero nuevo sacando preguntas al azar de todo el pool, según la dificultad de cada una. En «Por categorías» cada columna es una categoría completa. En «Mezcla total» cada casilla sale de cualquier categoría y la columna se llama «Sorpresa»; la pregunta muestra de qué categoría viene.'}),
+    h('div',{class:'fld'},h('span',{class:'lbl',text:'Estilo'}),
+      chips([['cat','Por categorías'],['mix','Mezcla total']],RND.style,function(v){RND.style=v;render();},'Estilo')),
+    h('div',{class:'grid2'},sel('rn-cols','Columnas',2,MAX_CATS,'cols'),sel('rn-rows','Filas',3,rowMax,'rows')),
+    h('div',{class:'fld'},h('span',{class:'lbl',text:'Dificultad'}),
+      chips([['prog','Progresiva'],['1','Fácil',byCat],['2','Media',byCat],['3','Difícil',byCat],['any','Al azar']],RND.diff,function(v){RND.diff=v;render();},'Dificultad')),
+    h('label',{class:'chk'},
+      h('input',{id:'rn-saved',type:'checkbox',checked:RND.saved,onchange:function(e){RND.saved=e.target.checked;render();}}),
+      'Incluir también mis sets guardados'),
+    h('p',{class:'meta',text:'Pool actual: '+P.clues.length+' preguntas ('+cnt[1]+' fáciles, '+cnt[2]+' medias, '+cnt[3]+' difíciles) en '+P.cats.length+' categorías.'+
+      (byCat?' Con «Por categorías» la dificultad sube de fila en fila y cada categoría trae 5 preguntas como máximo. Para elegir un solo nivel (fácil, media o difícil) usa «Mezcla total». Categorías disponibles con '+RND.rows+' preguntas: '+catsOk+'.':'')}),
     h('div',{class:'rowline wrap'},
-      DL?h('button',{class:'btn primary',type:'button',onclick:saveFile,text:'Guardar archivo (.json)'}):null,
-      h('button',{class:'btn',type:'button',onclick:copyCode,text:'Copiar código'})),
-    fld('io-file','Cargar un archivo guardado',h('input',{id:'io-file',type:'file',accept:'.json,application/json,text/plain',
-      onchange:function(e){
-        var f=e.target.files&&e.target.files[0];
-        if(!f)return;
-        if(f.size>2000000){toast('El archivo es demasiado grande.');return;}
-        var r=new FileReader();
-        r.onload=function(){loadText(String(r.result));};
-        r.onerror=function(){toast('No se pudo leer el archivo.');};
-        r.readAsText(f);
-      }})),
-    fld('io-text','O pegar el código aquí',ta),
-    h('div',{class:'rowline wrap'},
-      confirmBtn('Cargar código pegado','btn',function(){loadText(ta.value);},'¿Reemplazar el tablero? Pulsa otra vez'),
-      confirmBtn('Cargar tablero de ejemplo','btn',function(){S=sample();editCat=0;save();render();toast('Ejemplo cargado.');},'¿Reemplazar el tablero? Pulsa otra vez'),
-      confirmBtn('Empezar con tablero vacío','btn',function(){S=blank();editCat=0;save();render();toast('Tablero vacío listo.');},'¿Reemplazar el tablero? Pulsa otra vez')));
+      h('button',{class:'btn primary',type:'button',onclick:function(){
+        var p=genRandom(RND);
+        if(!p.cats.length){toast('No hay preguntas suficientes en el pool.');return;}
+        applyParts(p);view='play';render();
+        toast(p.short?'Tablero listo, con menos columnas de las pedidas.':'Tablero al azar listo.');
+      },text:'Sortear tablero'})));
+}
+
+/* ---------- colores ---------- */
+function swatch(c,id){
+  var s=h('div',{class:'sw','aria-hidden':'true'},
+    h('i'),h('i'),h('i'),h('i'));
+  if(id)s.id=id;
+  var ks=['bg','paper','accent','stamp'];
+  [].forEach.call(s.children,function(el,i){el.style.background=c[ks[i]];});
+  return s;
+}
+function setColor(key,val){
+  if(TH.id!=='custom'){TH.custom=Object.assign({},curColors());TH.id='custom';}
+  TH.custom[key]=val;saveTheme();applyTheme();
+  document.querySelectorAll('.pal').forEach(function(b){
+    var on=b.getAttribute('data-id')==='custom';
+    b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));
+  });
+  var cs=$('sw-custom');if(cs)cs.replaceWith(swatch(TH.custom,'sw-custom'));
+}
+function themeStage(){
+  var c=curColors();
+  var list=PRESETS.concat([{id:'custom',name:'Mi paleta',c:TH.custom}]);
+  var grid=h('div',{class:'pal-grid',role:'group','aria-label':'Paletas'},list.map(function(p){
+    var on=TH.id===p.id;
+    return h('button',{class:'pal'+(on?' on':''),type:'button','aria-pressed':String(on),'data-id':p.id,
+      onclick:function(){TH.id=p.id;saveTheme();applyTheme();render();}},
+      swatch(p.c,p.id==='custom'?'sw-custom':null),h('span',{class:'pal-name',text:p.name}));
+  }));
+  var pickers=h('div',{class:'pickers'},THEME_KEYS.map(function(k){
+    return h('label',{class:'pk'},
+      h('input',{type:'color',id:'pk-'+k[0],value:c[k[0]],oninput:function(e){setColor(k[0],e.target.value);}}),
+      h('span',{text:k[1]}));
+  }));
+  return h('div',{class:'scroller editor'},h('div',{class:'ed-in'},
+    h('section',{class:'ed-sec'},
+      h('h2',{text:'Paletas'}),
+      h('p',{class:'help',text:'Elige una paleta para toda la app. El cambio se ve al instante y queda guardado en este navegador.'}),
+      grid),
+    h('section',{class:'ed-sec'},
+      h('h2',{text:'Colores a tu gusto'}),
+      h('p',{class:'help',text:'Al cambiar un color se crea «Mi paleta», que parte de la paleta que tenías elegida. Los demás tonos se calculan solos para que el texto siga legible.'}),
+      pickers,
+      h('div',{class:'rowline wrap'},
+        h('button',{class:'btn',type:'button',onclick:function(){TH.id='conco';saveTheme();applyTheme();render();toast('Paleta del logo restaurada.');},text:'Volver a la paleta del logo'})))));
 }
 
 /* ---------- teclado ---------- */
 document.addEventListener('keydown',function(e){
-  if(e.key==='Escape'){if(open){closeClue();e.preventDefault();}return;}
+  if(e.key==='Escape'){
+    if(open){closeClue();e.preventDefault();}
+    else if(!cover.hidden){hideCover(false);e.preventDefault();}
+    return;
+  }
   var tag=(e.target&&e.target.tagName)||'';
   if(/^(INPUT|TEXTAREA|SELECT)$/.test(tag)||(e.target&&e.target.isContentEditable))return;
   if(e.ctrlKey||e.metaKey||e.altKey)return;
   var k=(e.key||'').toLowerCase();
-  if(k==='f'){toggleFS();e.preventDefault();return;}
+  if(k==='f'&&cover.hidden){toggleFS();e.preventDefault();return;}
   if(!open)return;
   if((k===' '||k==='enter')&&tag!=='BUTTON'){toggleReveal();e.preventDefault();return;}
   if(k==='t'){tmToggle();e.preventDefault();return;}
@@ -800,14 +1566,14 @@ document.addEventListener('keydown',function(e){
 /* ---------- arranque ---------- */
 try{
   if(window.claude&&window.claude.use){
-    window.claude.use('downloads').then(function(d){
-      DL=d;
-      if(DL&&view==='edit')render();
-    }).catch(function(){});
+    window.claude.use('downloads').then(function(d){DL=d;}).catch(function(){});
   }
 }catch(e){}
 render();
+showCover();
+if(window.__TB_TEST)window.__TB={genRandom:genRandom,buildPool:buildPool,buildMix:buildMix,catList:catList,SETS:SETS,derive:derive,PRESETS:PRESETS,normSet:normSet,importText:importText,S:function(){return S;},LIB:function(){return LIB;}};
 })();
+
 </script>
 
 </body></html>
